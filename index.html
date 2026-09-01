@@ -90,11 +90,17 @@
   .station-slot{min-height:56px;border:1px dashed var(--border);border-radius:8px;padding:6px;background:#fff;}
   .station-slot .empty-hint{color:var(--muted);font-size:12px;text-align:center;padding:12px 0;}
   .bucket-drop{min-height:40px;border:1px dashed var(--border);border-radius:8px;padding:6px;background:#fff;display:flex;flex-direction:column;gap:6px;}
-  .occupant{display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;gap:6px;}
+  /* Stacked two-row layout: name+UPH on top, hours+remove on the bottom, spaced apart. A single
+     "everything on one line" row was fine when a station only ever held one occupant, but a
+     bucket (Small Pack, Large Pack, Walkie Pick, etc.) stacks several of these in a ~230px-wide
+     card, and cramming avatar+name+UPH+hours+button onto one line there wraps unpredictably. */
+  .occupant{display:flex;flex-direction:column;gap:6px;background:#fff;border:1px solid var(--border);border-radius:6px;padding:7px 8px;font-size:12px;}
   .occupant .who{display:flex;align-items:center;gap:6px;min-width:0;}
-  .occupant .who .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .occupant .hrs{width:52px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;}
-  .occupant button.remove{border:1px solid var(--bad);background:none;color:var(--bad);cursor:pointer;font-size:11px;line-height:1.4;padding:3px 7px;border-radius:5px;white-space:nowrap;}
+  .occupant .who .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;}
+  .occupant .who .uph{color:var(--muted);white-space:nowrap;flex-shrink:0;}
+  .occupant .controls{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .occupant .hrs{width:56px;padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;}
+  .occupant button.remove{border:1px solid var(--bad);background:none;color:var(--bad);cursor:pointer;font-size:11px;line-height:1.4;padding:3px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0;}
   .occupant button.remove:hover{background:var(--bad);color:#fff;}
   .flag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;margin-top:6px;}
   .flag.ok{background:var(--ok-bg);color:var(--ok);}
@@ -360,9 +366,12 @@ const FUNCTIONS = {
   WALKIE_PICK:         { name: "Walkie Pick",             tranType: "301", defaultUPH: 75,  type: "bucket", defaultCapacity: 4 },
   REPLEN_PICK:         { name: "Replenishment Pick",      tranType: "305", defaultUPH: 100, type: "bucket", defaultCapacity: 6 },
   REPLEN_PUT:          { name: "Replenishment Put",       tranType: "306", defaultUPH: 100, type: "bucket", defaultCapacity: 6 },
-  CUBBY_OUTSORT:       { name: "Cubby Outsort",           tranType: "311", defaultUPH: 75,  type: "bucket", defaultCapacity: 4 },
-  LARGE_CONSOLIDATION: { name: "Large Consolidation",     tranType: null,  defaultUPH: 50,  type: "bucket", defaultCapacity: 4, placeholder: true },
-  SMALL_CONSOLIDATION: { name: "Small Consolidation",     tranType: null,  defaultUPH: 50,  type: "bucket", defaultCapacity: 4, placeholder: true }
+  // Cubby Outsort was the same work as Large/Small Consolidation, so it's gone as its own
+  // function — both Consolidations now carry its Tran Type (311), which also means historical
+  // import can finally populate real UPH for them (defaultUPH below is still a starting guess
+  // until enough import history builds up real averages).
+  LARGE_CONSOLIDATION: { name: "Large Consolidation",     tranType: "311", defaultUPH: 50,  type: "bucket", defaultCapacity: 4 },
+  SMALL_CONSOLIDATION: { name: "Small Consolidation",     tranType: "311", defaultUPH: 50,  type: "bucket", defaultCapacity: 4 }
 };
 
 /* Default calc settings (overridden by /settings/appSettings once saved) */
@@ -375,7 +384,7 @@ const ZONES = [
   { label: "MOD Pick Zone",          functions: ["MOD_PICK"] },
   { label: "Walkie Pick Zone",       functions: ["WALKIE_PICK"] },
   { label: "Replen Zone",            functions: ["REPLEN_PICK", "REPLEN_PUT"] },
-  { label: "Consolidation & Outsort",functions: ["CUBBY_OUTSORT", "LARGE_CONSOLIDATION", "SMALL_CONSOLIDATION"] }
+  { label: "Consolidation",          functions: ["LARGE_CONSOLIDATION", "SMALL_CONSOLIDATION"] }
 ];
 
 /* Tran Type counted toward the "Pack-out so far" stat — Pack completions only (315), since that's
@@ -849,11 +858,11 @@ function occupantRow(seg, a, uph, hrs, functionKey) {
   row.dataset.associateId = seg.associateId;
   const nameHtml = a ? `${avatarHTML(a, functionKey)}<span class="name">${a.name || a.employeeId}</span>` : `<span class="name">(unknown)</span>`;
   row.innerHTML = `
-    <span class="who">${nameHtml} <span style="color:var(--muted)">(${uph.toFixed(1)} UPH)</span></span>
-    <span>
+    <div class="who">${nameHtml}<span class="uph">(${uph.toFixed(1)} UPH)</span></div>
+    <div class="controls">
       <input class="hrs" type="number" step="0.25" value="${hrs}" title="Hours in function" draggable="false">
       <button class="remove" type="button" draggable="false" title="Return to pool">✕ Remove</button>
-    </span>`;
+    </div>`;
   // The whole row is draggable (so you can drag someone straight to another station), but that
   // swallows clicks on the nested Remove button / hours input: a tiny mouse move while clicking
   // gets read as "start dragging the row" instead of "click the button." Bail out of the drag
@@ -1045,8 +1054,21 @@ function renderStationsAdmin() {
         db.collection("stations").doc(st.id).update({ [field]: val });
       });
     });
-    tr.querySelector('[data-action="delete"]').addEventListener("click", () => {
-      if (confirm(`Delete station "${st.name}"?`)) db.collection("stations").doc(st.id).delete();
+    tr.querySelector('[data-action="delete"]').addEventListener("click", async () => {
+      if (!confirm(`Delete station "${st.name}"?`)) return;
+      // Close out anyone currently assigned to this station first, so deleting it doesn't leave
+      // them stuck "assigned" to a station that no longer exists.
+      const openSegsHere = segments.filter(s => !s.endTime && s.stationId === st.id);
+      if (openSegsHere.length) {
+        const now = firebase.firestore.Timestamp.now();
+        const segRef = db.collection("assignments").doc(currentShiftDate).collection("segments");
+        const batch = db.batch();
+        openSegsHere.forEach(seg => batch.update(segRef.doc(seg.id), { endTime: now }));
+        batch.delete(db.collection("stations").doc(st.id));
+        await batch.commit();
+      } else {
+        await db.collection("stations").doc(st.id).delete();
+      }
     });
     tbody.appendChild(tr);
   });
@@ -1434,7 +1456,7 @@ function aggregateToUPH(rows, log) {
     const key = `${r.shiftDate} | Tran Type ${r.tranType}`;
     byDateType[key] = (byDateType[key] || 0) + r.units;
   });
-  log.textContent += `\nUnits by date / Tran Type (315=Pack, 301=Pick, 305=Replen Pick, 306=Replen Put, 311=Cubby Outsort):\n`;
+  log.textContent += `\nUnits by date / Tran Type (315=Pack, 301=Pick, 305=Replen Pick, 306=Replen Put, 311=Consolidation):\n`;
   Object.keys(byDateType).sort().forEach(key => {
     log.textContent += `  ${key}: ${byDateType[key]} units\n`;
   });
