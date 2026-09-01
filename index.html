@@ -199,10 +199,13 @@
       <div class="admin-pane admin-tab" data-tab="stations">
         <h2>Stations &amp; UPH Targets</h2>
         <div class="note">
-          "Slot" stations hold exactly one associate (Pack). "Bucket" functions can hold any number of associates
-          (Pick/Replen/Consolidation). Counts and targets here are starting points &mdash; adjust freely.
+          "Bucket" functions (Small Pack, Large Pack, Pick/Replen/Consolidation) hold any number of associates up
+          to a configurable capacity. "Slot" stations hold exactly one associate each &mdash; not used by default
+          anymore, but still supported if you ever want a physically fixed one-person station again. Counts and
+          targets here are starting points &mdash; adjust freely.
         </div>
         <button class="btn secondary" id="seed-btn">Seed default stations (run once)</button>
+        <button class="btn secondary" id="migrate-pack-btn" title="One-time: converts the individual Small/Large Pack slot stations into two buckets">Convert Pack to bucket-style (run once)</button>
         <table class="admin-table" id="stations-table" style="margin-top:12px;">
           <thead><tr><th>Name</th><th>Function</th><th>Type</th><th>Tran Type</th><th>Set UPH</th><th>Capacity</th><th></th></tr></thead>
           <tbody></tbody>
@@ -339,16 +342,19 @@ const db = firebase.firestore();
 /* ======================================================================
    FUNCTION / STATION DEFINITIONS
    tranType maps to the code(s) used in your transaction export.
-   type: 'slot' = fixed physical stations, one associate each (Pack — this is a real
-         physical constraint, not adjustable from Admin).
-         'bucket' = one drop-zone with a configurable capacity (Pick/Replen/Consolidation) —
-         defaultCapacity seeds the starting number of slots; edit the real number in
-         Admin > Stations per your actual floor headcount.
+   type: 'bucket' = one drop-zone with a configurable capacity (Pick/Replen/Consolidation, and
+         Pack as of this version) — defaultCapacity seeds the starting number of slots; edit
+         the real number in Admin > Stations per your actual floor headcount.
+         'slot' = a fixed physical one-associate station. No longer used by default (Pack used
+         to be modeled this way, one card per physical station), but still fully supported by
+         the Board/Admin code if a function ever needs to go back to a hard one-person cap.
    ====================================================================== */
 const FUNCTIONS = {
-  SMALL_PACK:          { name: "Small Pack",           tranType: "315", defaultUPH: 75,  type: "slot",   count: 8 },
-  LARGE_PACK:          { name: "Large Pack",            tranType: "315", defaultUPH: 22,  type: "slot",   count: 6 },
-  LARGE_PACK_CUBBIES:  { name: "Large Pack Cubbies",    tranType: "315", defaultUPH: 30,  type: "slot",   count: 1 },
+  // Pack used to be individual one-person "slot" stations (8 Small Pack, 6 Large Pack, 1 Large
+  // Pack Cubbies). Now a bucket like Walkie Pick — one drop zone per size, configurable capacity,
+  // any number of associates — with Cubbies folded into Large Pack rather than tracked separately.
+  SMALL_PACK:          { name: "Small Pack",            tranType: "315", defaultUPH: 75,  type: "bucket", defaultCapacity: 8 },
+  LARGE_PACK:          { name: "Large Pack",             tranType: "315", defaultUPH: 22,  type: "bucket", defaultCapacity: 7 },
   OP_PICK:             { name: "OP Pick",                tranType: "301", defaultUPH: 35,  type: "bucket", defaultCapacity: 6 },
   MOD_PICK:            { name: "MOD Pick",               tranType: "301", defaultUPH: 85,  type: "bucket", defaultCapacity: 6 },
   WALKIE_PICK:         { name: "Walkie Pick",             tranType: "301", defaultUPH: 75,  type: "bucket", defaultCapacity: 4 },
@@ -364,7 +370,7 @@ let appSettings = { avgUphWindowShifts: 15, trendRecentDays: 14, trendPriorDays:
 
 /* Zones — purely a visual grouping of stations on the Board (matches the floor-layout mockup). */
 const ZONES = [
-  { label: "Pack Zone",              functions: ["SMALL_PACK", "LARGE_PACK", "LARGE_PACK_CUBBIES"] },
+  { label: "Pack Zone",              functions: ["SMALL_PACK", "LARGE_PACK"] },
   { label: "OP Pick Zone",           functions: ["OP_PICK"] },
   { label: "MOD Pick Zone",          functions: ["MOD_PICK"] },
   { label: "Walkie Pick Zone",       functions: ["WALKIE_PICK"] },
@@ -967,6 +973,53 @@ document.getElementById("seed-btn").addEventListener("click", async () => {
   });
   await batch.commit();
   alert("Stations seeded.");
+});
+
+// One-time migration: Pack used to be individual one-person "slot" stations (8 Small Pack,
+// 6 Large Pack, 1 Large Pack Cubbies). Now it's bucket-style like Walkie Pick — one drop zone
+// per size, any number of associates — with Cubbies folded into Large Pack. This replaces the
+// old slot docs with two new bucket docs (ids "SMALL_PACK" / "LARGE_PACK", matching what Seed
+// would create going forward), closes any active segments pointing at the stations being
+// removed (so nobody's left assigned to a station that no longer exists), and preserves the
+// Set UPH you already had on the existing Large Pack stations (not Cubbies' rate, since that's
+// the one being folded in and dropped).
+document.getElementById("migrate-pack-btn").addEventListener("click", async () => {
+  const smallDocs = stations.filter(st => st.functionKey === "SMALL_PACK" && st.type === "slot");
+  const largeDocs = stations.filter(st => (st.functionKey === "LARGE_PACK" || st.functionKey === "LARGE_PACK_CUBBIES") && st.type === "slot");
+  if (!smallDocs.length && !largeDocs.length) {
+    alert("Nothing to migrate — no old-style Small/Large Pack slot stations found. If you already ran this, you're done.");
+    return;
+  }
+  if (!confirm(`This will replace ${smallDocs.length} Small Pack + ${largeDocs.length} Large Pack/Cubbies slot stations with 2 bucket stations. Anyone currently assigned to one of them will be returned to the pool. Continue?`)) return;
+
+  const removedIds = new Set([...smallDocs, ...largeDocs].map(st => st.id));
+  const openSegsOnRemoved = segments.filter(s => !s.endTime && removedIds.has(s.stationId));
+  const now = firebase.firestore.Timestamp.now();
+  const segRef = db.collection("assignments").doc(currentShiftDate).collection("segments");
+  const batch = db.batch();
+
+  openSegsOnRemoved.forEach(seg => batch.update(segRef.doc(seg.id), { endTime: now }));
+  smallDocs.forEach(st => batch.delete(db.collection("stations").doc(st.id)));
+  largeDocs.forEach(st => batch.delete(db.collection("stations").doc(st.id)));
+
+  if (smallDocs.length) {
+    const setUPH = smallDocs[0].setUPH || FUNCTIONS.SMALL_PACK.defaultUPH;
+    batch.set(db.collection("stations").doc("SMALL_PACK"), {
+      name: FUNCTIONS.SMALL_PACK.name, functionKey: "SMALL_PACK", tranType: FUNCTIONS.SMALL_PACK.tranType,
+      setUPH, type: "bucket", capacity: smallDocs.length, order: smallDocs[0].order ?? 0
+    }, { merge: true });
+  }
+  if (largeDocs.length) {
+    const largePackOnly = largeDocs.filter(st => st.functionKey === "LARGE_PACK");
+    const setUPH = (largePackOnly[0] || largeDocs[0]).setUPH || FUNCTIONS.LARGE_PACK.defaultUPH;
+    batch.set(db.collection("stations").doc("LARGE_PACK"), {
+      name: FUNCTIONS.LARGE_PACK.name, functionKey: "LARGE_PACK", tranType: FUNCTIONS.LARGE_PACK.tranType,
+      setUPH, type: "bucket", capacity: largeDocs.length, order: largeDocs[0].order ?? 0
+    }, { merge: true });
+  }
+
+  await batch.commit();
+  alert(`Migrated. Small Pack is now one bucket (capacity ${smallDocs.length || 0}), Large Pack is now one bucket (capacity ${largeDocs.length || 0}, Cubbies folded in).`);
 });
 
 function renderStationsAdmin() {
