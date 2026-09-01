@@ -215,6 +215,7 @@
           <div class="field"><label>Display name</label><input id="new-assoc-name"></div>
           <div class="field"><label>Associate Id (IE#)</label><input id="new-assoc-code"></div>
           <div class="field"><label>Trained roles (ctrl/cmd-click for multiple)</label><select id="new-assoc-role" multiple size="4"></select></div>
+          <div class="field"><label><input type="checkbox" id="new-assoc-automated"> Automated (not a person)</label></div>
           <button class="btn" id="add-assoc-btn">Add associate</button>
         </div>
         <div class="note">
@@ -222,6 +223,12 @@
           associate shows up under every role they're trained in (e.g. both "OP Pickers" and "Replen Put"). This
           doesn't limit where you can actually drag them, it's just for finding who's available. Leave blank and
           they'll show under "Unassigned."
+        </div>
+        <div class="note">
+          <b>Automated:</b> for Employee Ids in the transaction export that aren't a person &mdash; e.g. RSItem
+          (print-and-apply, straight to conveyor) or inVia. Checking this hides the card from the Talent Pool
+          (nothing to staff/drag), but its scanned units still flow into UPH history and shift totals normally
+          &mdash; e.g. RSItem's Tran Type 315 scans still count toward "Pack-out so far."
         </div>
         <div class="note">
           <b>Bulk add:</b> paste one Employee Id per line (matching the "Employee Id" column in your transaction
@@ -234,7 +241,7 @@
         <button class="btn secondary" id="bulk-add-assoc-btn">Bulk add</button>
         <div id="bulk-assoc-log" class="note hidden"></div>
         <table class="admin-table" id="assoc-table">
-          <thead><tr><th>Employee Id</th><th>Name</th><th>Associate Id</th><th>Trained Roles (ctrl/cmd-click)</th><th>Active</th><th></th></tr></thead>
+          <thead><tr><th>Employee Id</th><th>Name</th><th>Associate Id</th><th>Trained Roles (ctrl/cmd-click)</th><th>Active</th><th>Automated</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -629,7 +636,7 @@ function renderBoard() {
   // Cross-trained associates are listed under EVERY role they're trained in, so
   // "who could I move to X" is answerable at a glance from any group.
   const assignedIds = new Set(segments.filter(s => !s.endTime).map(s => s.associateId));
-  const pool = associates.filter(a => a.active !== false && !assignedIds.has(a.id));
+  const pool = associates.filter(a => a.active !== false && !a.automated && !assignedIds.has(a.id));
   const poolEl = document.getElementById("pool-list");
   poolEl.innerHTML = "";
 
@@ -943,12 +950,14 @@ document.getElementById("add-assoc-btn").addEventListener("click", async () => {
   const name = document.getElementById("new-assoc-name").value.trim();
   const associateCode = document.getElementById("new-assoc-code").value.trim();
   const trainedRoles = [...document.getElementById("new-assoc-role").selectedOptions].map(o => o.value);
+  const automated = document.getElementById("new-assoc-automated").checked;
   if (!employeeId || !name) { alert("Employee Id and name are required."); return; }
-  await db.collection("associates").add({ employeeId, name, associateCode, trainedRoles, active: true });
+  await db.collection("associates").add({ employeeId, name, associateCode, trainedRoles, active: true, automated });
   document.getElementById("new-assoc-eid").value = "";
   document.getElementById("new-assoc-name").value = "";
   document.getElementById("new-assoc-code").value = "";
   document.getElementById("new-assoc-role").selectedIndex = -1;
+  document.getElementById("new-assoc-automated").checked = false;
 });
 
 document.getElementById("bulk-add-assoc-btn").addEventListener("click", async () => {
@@ -964,9 +973,15 @@ document.getElementById("bulk-add-assoc-btn").addEventListener("click", async ()
 
   if (!toAdd.length) { logEl.textContent = `Nothing to add — all ${ids.length} already exist.`; return; }
 
+  // Known non-person Employee Ids in the transaction export default to "automated" so they
+  // don't show up as draggable cards in the Talent Pool — their scans still count normally.
+  const KNOWN_AUTOMATED_IDS = new Set(["RSItem", "inVia"]);
   const batch = db.batch();
   toAdd.forEach(id => {
-    batch.set(db.collection("associates").doc(), { employeeId: id, name: id, associateCode: "", trainedRoles: [], active: true });
+    batch.set(db.collection("associates").doc(), {
+      employeeId: id, name: id, associateCode: "", trainedRoles: [], active: true,
+      automated: KNOWN_AUTOMATED_IDS.has(id)
+    });
   });
   await batch.commit();
   logEl.textContent = `Added ${toAdd.length} associate(s).` + (skipped ? ` Skipped ${skipped} already on file.` : "");
@@ -987,12 +1002,13 @@ function renderAssociatesAdmin() {
       <td><input value="${a.associateCode || ""}" data-field="associateCode"></td>
       <td><select data-field="trainedRoles" multiple size="3">${roleOptions}</select></td>
       <td><input type="checkbox" data-field="active" ${a.active !== false ? "checked" : ""}></td>
+      <td><input type="checkbox" data-field="automated" ${a.automated ? "checked" : ""} title="Not a person — hidden from Talent Pool, units still count"></td>
       <td class="row-actions"><button data-action="delete">Delete</button></td>`;
     tr.querySelectorAll("input, select").forEach(inp => {
       inp.addEventListener("change", () => {
         const field = inp.dataset.field;
         let val;
-        if (field === "active") val = inp.checked;
+        if (field === "active" || field === "automated") val = inp.checked;
         else if (field === "trainedRoles") val = [...inp.selectedOptions].map(o => o.value);
         else val = inp.value;
         db.collection("associates").doc(a.id).update({ [field]: val });
