@@ -79,11 +79,13 @@
   .trend-up{color:var(--ok);} .trend-down{color:var(--bad);} .trend-flat{color:var(--muted);}
   #pool-list.dragover, .station-slot.dragover, .station-bucket .bucket-drop.dragover{outline:2px dashed var(--accent);outline-offset:2px;}
 
-  /* Fixed 4-column floor grid. Each zone is pinned to a specific column (see ZONES.column
-     in the script) instead of just flowing left-to-right, so Replen/Consolidation land
-     directly under OP Pick / MOD Pick — not wherever they happen to fall in source order —
-     and empty columns (e.g. under Walkie Pick) stay empty instead of getting backfilled. */
-  #stations-wrap{display:grid;grid-template-columns:repeat(4, 230px);grid-auto-flow:row dense;align-items:start;gap:18px 24px;}
+  /* Fixed 4-column floor layout, but each column is its own independent flex stack (not a
+     shared CSS grid row) — a plain grid sizes row 1 to the TALLEST zone in that row (Pack,
+     with 2 stations), which pushed Replen/Consolidation down to start below Pack's full
+     height even though OP/MOD Pick above them were short. With independent column stacks,
+     Replen/Consolidation sit right under OP/MOD Pick's own height, not Pack's. */
+  #stations-wrap{display:flex;align-items:flex-start;gap:18px 24px;}
+  .floor-col{display:flex;flex-direction:column;gap:18px;width:230px;flex:none;}
   .zone-block{margin-bottom:0;}
   .zone-header{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;border-left:4px solid var(--accent);padding-left:8px;margin-bottom:8px;}
   .station-card{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--slot-bg);}
@@ -689,12 +691,23 @@ function renderBoard() {
   wrap.innerHTML = "";
   let totalProjected = 0, totalGoal = 0;
 
+  // Each column is its own vertical stack (see #stations-wrap/.floor-col CSS note above) so
+  // a zone's row within a column depends only on that column's own content, not other columns'.
+  const colEls = {};
+  function colFor(n) {
+    if (!colEls[n]) {
+      const col = document.createElement("div");
+      col.className = "floor-col";
+      colEls[n] = col;
+    }
+    return colEls[n];
+  }
+
   ZONES.forEach(zone => {
     const zoneStations = stations.filter(st => zone.functions.includes(st.functionKey));
     if (!zoneStations.length) return;
     const zoneBlock = document.createElement("div");
     zoneBlock.className = "zone-block";
-    if (zone.column) zoneBlock.style.gridColumn = String(zone.column);
     zoneBlock.innerHTML = `<div class="zone-header">${zone.label}</div>`;
     const zoneGrid = document.createElement("div");
     zoneGrid.style.display = "grid";
@@ -797,8 +810,10 @@ function renderBoard() {
       zoneGrid.appendChild(card);
     });
 
-    wrap.appendChild(zoneBlock);
+    colFor(zone.column || 1).appendChild(zoneBlock);
   });
+
+  Object.keys(colEls).sort((a, b) => a - b).forEach(n => wrap.appendChild(colEls[n]));
 
   // ---- Hero stat bar ----
   document.getElementById("stat-projected").textContent = Math.round(totalProjected);
