@@ -163,7 +163,7 @@
           </div>
         </div>
         <div class="shift-stat">Shift progress <b id="stat-progress">0%</b></div>
-        <div class="shift-stat">Outbound so far (last import) <b id="stat-outbound">0</b></div>
+        <div class="shift-stat">Pack-out so far (last import) <b id="stat-outbound">0</b></div>
         <div class="shift-stat">Projected EOS total <b id="stat-projected">0</b></div>
         <div class="shift-stat">Combined goal <b id="stat-goal">0</b></div>
         <div class="shift-stat">Overall pace <b id="stat-pace">0%</b></div>
@@ -282,10 +282,17 @@
           <div class="field"><label>Trend: recent period (days)</label><input type="number" id="set-recent"></div>
           <div class="field"><label>Trend: prior period (days)</label><input type="number" id="set-prior"></div>
           <div class="field"><label>Shift start (24h, e.g. 17 = 5 PM)</label><input type="number" id="set-shift-start"></div>
-          <div class="field"><label>Shift length (hours)</label><input type="number" step="0.25" id="set-shift-length"></div>
+          <div class="field"><label>Core shift length (hours)</label><input type="number" step="0.25" id="set-shift-length"></div>
+          <div class="field"><label>Extra-hour grace window (hours)</label><input type="number" step="0.25" id="set-shift-grace"></div>
           <button class="btn" id="save-settings-btn">Save settings</button>
         </div>
-        <div class="note">Shift start/length only drive the "Shift progress" stat on the Board &mdash; they don't affect any projection math.</div>
+        <div class="note">
+          These drive the Board's "Shift progress" stat AND the import's overnight filter/ShiftDate logic.
+          Core window (e.g. 5:00 PM&ndash;3:30 AM) is always imported. The grace window after that (e.g. up to
+          4:30 AM) is only imported on nights that actually have Pack activity in it &mdash; auto-detected per
+          night from the file, same idea as your sheet's "Extra Hour Running?" check, so a normal 3:30 AM
+          cutoff night doesn't accidentally pull in the next shift's early scans.
+        </div>
       </div>
     </section>
   </main>
@@ -332,7 +339,7 @@ const FUNCTIONS = {
 };
 
 /* Default calc settings (overridden by /settings/appSettings once saved) */
-let appSettings = { avgUphWindowShifts: 15, trendRecentDays: 14, trendPriorDays: 14, shiftStartHour: 17, shiftLengthHours: 10.5 };
+let appSettings = { avgUphWindowShifts: 15, trendRecentDays: 14, trendPriorDays: 14, shiftStartHour: 17, shiftLengthHours: 10.5, shiftGraceHours: 1 };
 
 /* Zones — purely a visual grouping of stations on the Board (matches the floor-layout mockup). */
 const ZONES = [
@@ -344,8 +351,10 @@ const ZONES = [
   { label: "Consolidation & Outsort",functions: ["CUBBY_OUTSORT", "LARGE_CONSOLIDATION", "SMALL_CONSOLIDATION"] }
 ];
 
-/* Tran Types counted toward the "Outbound so far" stat (Pick + Pack codes; excludes Inbound/Putaway). */
-const OUTBOUND_TRAN_TYPES = ["301", "305", "311", "315"];
+/* Tran Type counted toward the "Pack-out so far" stat — Pack completions only (315), since that's
+   the number that varies with items-per-order (1, 3, 5...) and is what gets compared against
+   the Shift Cost Sheet's Packs (315) units. */
+const PACKOUT_TRAN_TYPE = "315";
 
 /* ======================================================================
    STATE (populated by Firestore listeners)
@@ -359,17 +368,43 @@ let currentShiftDate = todayShiftDateStr();
 let unsubSegments = null;
 
 /* ======================================================================
-   SHIFT DATE HELPER
-   Mirrors the workbook's ShiftDate rule: a scan/action before 4:30 AM
-   belongs to the PRIOR calendar day's shift.
+   SHIFT DATE / WINDOW HELPERS
+   Driven by Settings > shift start/length/grace (default 5:00 PM + 10.5h = 3:30 AM core end,
+   +1h grace = 4:30 AM max). The core window (5:00 PM - 3:30 AM) is always counted. The grace
+   window (3:30 - 4:30 AM) is a maybe: your shift only runs that late some nights ("Extra Hour
+   Running"), and on nights it doesn't, that hour belongs to the next shift starting early.
+   The import pipeline auto-detects which nights ran the extra hour (see cleanRows) instead of
+   guessing with one fixed cutoff — same idea as the "Extra Hour Running?" check in Employee_UPH,
+   just automatic instead of a per-associate manual flag.
    ====================================================================== */
+function shiftCoreEndHour() {
+  return (appSettings.shiftStartHour + appSettings.shiftLengthHours) % 24;
+}
+function shiftMaxEndHour() {
+  return (appSettings.shiftStartHour + appSettings.shiftLengthHours + (appSettings.shiftGraceHours || 0)) % 24;
+}
+
+// A scan/action at or after the MAX possible end (core + grace) belongs to the PRIOR
+// calendar day's shift. Uses the outer bound so a legitimate extra-hour scan still buckets
+// to the correct night even before we've decided whether that night gets the extra hour.
 function todayShiftDateStr(d) {
   d = d || new Date();
+  const end = shiftMaxEndHour();
   const cutoff = new Date(d);
-  cutoff.setHours(4, 30, 0, 0);
+  cutoff.setHours(Math.floor(end), (end % 1) * 60, 0, 0);
   const shiftDay = new Date(d);
   if (d < cutoff) shiftDay.setDate(shiftDay.getDate() - 1);
   return shiftDay.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+// Classifies a fractional-hour timestamp (e.g. 17.5 = 5:30 PM) as "core" (always counted),
+// "grace" (counted only on nights that ran the extra hour), or "outside" the shift entirely.
+function shiftWindowZone(hh) {
+  const start = appSettings.shiftStartHour, coreEnd = shiftCoreEndHour(), maxEnd = shiftMaxEndHour();
+  const inCore = start <= coreEnd ? (hh >= start && hh <= coreEnd) : (hh >= start || hh <= coreEnd);
+  if (inCore) return "core";
+  const inGrace = coreEnd <= maxEnd ? (hh > coreEnd && hh <= maxEnd) : (hh > coreEnd || hh <= maxEnd);
+  return inGrace ? "grace" : "outside";
 }
 
 /* ======================================================================
@@ -429,6 +464,7 @@ function startListeners() {
     document.getElementById("set-prior").value = appSettings.trendPriorDays;
     document.getElementById("set-shift-start").value = appSettings.shiftStartHour;
     document.getElementById("set-shift-length").value = appSettings.shiftLengthHours;
+    document.getElementById("set-shift-grace").value = appSettings.shiftGraceHours;
     renderBoard();
   });
 
@@ -493,8 +529,11 @@ document.getElementById("shift-date").addEventListener("change", e => watchShift
    ====================================================================== */
 function historyFor(associateId, tranType) {
   if (!tranType) return [];
+  // Only records with a reliable UPH rate (>=10 min of scan spread) count toward averaging —
+  // a record with reliable:false (or an older import from before that flag existed, which
+  // still has a numeric uph) still has real units, just not a trustworthy per-hour rate.
   return uphHistory
-    .filter(h => h.associateId === associateId && h.tranType === tranType)
+    .filter(h => h.associateId === associateId && h.tranType === tranType && h.uph != null && h.reliable !== false)
     .sort((a, b) => (a.shiftDate < b.shiftDate ? 1 : -1)); // desc
 }
 
@@ -691,11 +730,12 @@ function renderBoard() {
     paceEl.className = "";
   }
 
-  // Outbound so far: snapshot from whatever's been imported for today's shiftDate (not live).
-  const outboundSoFar = uphHistory
-    .filter(h => h.shiftDate === currentShiftDate && OUTBOUND_TRAN_TYPES.includes(h.tranType))
+  // Pack-out so far: snapshot from whatever's been imported for today's shiftDate (not live) —
+  // Pack (315) Tran Qty only, which is why it's 1, 3, 5... per scan depending on order contents.
+  const packoutSoFar = uphHistory
+    .filter(h => h.shiftDate === currentShiftDate && h.tranType === PACKOUT_TRAN_TYPE)
     .reduce((s, h) => s + (h.units || 0), 0);
-  document.getElementById("stat-outbound").textContent = Math.round(outboundSoFar);
+  document.getElementById("stat-outbound").textContent = Math.round(packoutSoFar);
 
   // Shift progress %, based on Settings > shift start/length (display only, doesn't affect projections).
   const now = new Date();
@@ -989,10 +1029,12 @@ document.getElementById("save-settings-btn").addEventListener("click", async () 
   const trendPriorDays = parseInt(document.getElementById("set-prior").value) || 14;
   const shiftStartHour = parseFloat(document.getElementById("set-shift-start").value);
   const shiftLengthHours = parseFloat(document.getElementById("set-shift-length").value);
+  const shiftGraceHours = parseFloat(document.getElementById("set-shift-grace").value);
   await db.collection("settings").doc("appSettings").set({
     avgUphWindowShifts, trendRecentDays, trendPriorDays,
     shiftStartHour: isNaN(shiftStartHour) ? 17 : shiftStartHour,
-    shiftLengthHours: isNaN(shiftLengthHours) ? 10.5 : shiftLengthHours
+    shiftLengthHours: isNaN(shiftLengthHours) ? 10.5 : shiftLengthHours,
+    shiftGraceHours: isNaN(shiftGraceHours) ? 1 : shiftGraceHours
   });
 });
 
@@ -1035,7 +1077,7 @@ document.getElementById("commit-btn").addEventListener("click", async () => {
     const id = `${r.associateId}_${r.tranType}_${r.shiftDate}`;
     batch.set(db.collection("uphHistory").doc(id), {
       associateId: r.associateId, tranType: r.tranType, shiftDate: r.shiftDate,
-      units: r.units, minutes: r.minutes, uph: r.uph,
+      units: r.units, minutes: r.minutes, uph: r.uph, reliable: r.reliable,
       expireAt: firebase.firestore.Timestamp.fromDate(expire)
     });
   });
@@ -1086,30 +1128,46 @@ function cleanRows(raw, log) {
     return isNaN(n) ? null : n;
   };
 
-  // Step 3: derive Date Only / Time Only / ShiftDate / OvernightFlag
+  // Step 3: derive Date Only / Time Only / ShiftDate, and classify each row into the
+  // "core" shift window (always kept), the "grace" window (kept only on nights that ran
+  // the extra hour), or "outside" (a different shift entirely — dropped).
   const withDerived = objs.map(o => {
     const dt = o["Date Time"] instanceof Date ? o["Date Time"] : new Date(o["Date Time"]);
     if (isNaN(dt)) return null;
     const shiftDate = todayShiftDateStr(dt);
     const hh = dt.getHours() + dt.getMinutes() / 60;
-    const overnight = hh >= 17 || hh <= 4.5;
     return {
       empId: String(o["Employee Id"]).trim(),
       tranType: String(o["Tran Type"] || "").trim(),
       dateTime: dt,
       shiftDate,
-      overnight,
+      zone: shiftWindowZone(hh),
       qty: cleanQty(o["Tran Qty"])
     };
   }).filter(r => r && r.qty != null && r.tranType);
 
-  // Step 4: keep overnight only
-  const overnightRows = withDerived.filter(r => r.overnight);
-  log.textContent += `${overnightRows.length} rows after overnight filter (5:00 PM - 4:30 AM).\n`;
+  // Step 4: auto-detect which nights ran the extra hour — same signal as the sheet's
+  // "Extra Hour Running?" check (Pack activity in the grace window), just computed per
+  // night across the whole file instead of manually per associate.
+  const extendedDates = new Set();
+  withDerived.forEach(r => {
+    if (r.zone === "grace" && r.tranType === PACKOUT_TRAN_TYPE) extendedDates.add(r.shiftDate);
+  });
+
+  const coreRows = withDerived.filter(r => r.zone === "core");
+  const graceKeptRows = withDerived.filter(r => r.zone === "grace" && extendedDates.has(r.shiftDate));
+  const graceDroppedCount = withDerived.filter(r => r.zone === "grace" && !extendedDates.has(r.shiftDate)).length;
+  const shiftRows = [...coreRows, ...graceKeptRows];
+
+  log.textContent += `${shiftRows.length} rows after shift-window filter (${coreRows.length} in the core window`;
+  log.textContent += extendedDates.size
+    ? `; ${graceKeptRows.length} more from the grace window on ${extendedDates.size} night(s) that ran the extra hour: ${[...extendedDates].sort().join(", ")}`
+    : `; no nights in this file show Pack activity in the grace window, so nothing from it was included`;
+  log.textContent += graceDroppedCount ? `; ${graceDroppedCount} grace-window row(s) dropped as belonging to the next shift).\n` : `).\n`;
 
   // Step 5: dedupe on {Tran Type, Employee Id, Date Time, Qty}
   const seen = new Set();
-  const deduped = overnightRows.filter(r => {
+  const deduped = shiftRows.filter(r => {
     const key = `${r.tranType}|${r.empId}|${r.dateTime.getTime()}|${r.qty}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -1133,20 +1191,43 @@ function aggregateToUPH(rows, log) {
   associates.forEach(a => { associateByEmployeeId[a.employeeId] = a.id; });
 
   const out = [];
-  let skippedNoAssoc = 0, skippedShort = 0;
+  const skippedNoAssocIds = new Set();
+  let skippedShort = 0;
   Object.values(groups).forEach(g => {
     const associateId = associateByEmployeeId[g.empId];
-    if (!associateId) { skippedNoAssoc++; return; }
+    if (!associateId) { skippedNoAssocIds.add(g.empId); return; }
     const minMs = Math.min(...g.times), maxMs = Math.max(...g.times);
     const minutes = (maxMs - minMs) / 60000;
-    if (minutes < 10) { skippedShort++; return; } // too little spread to trust a rate
-    const uph = g.units / (minutes / 60);
-    out.push({ associateId, tranType: g.tranType, shiftDate: g.shiftDate, units: g.units, minutes: Math.round(minutes), uph: Math.round(uph * 100) / 100 });
+    // Units are real regardless of spread — only the derived UPH rate is unreliable on a short
+    // spread, so we still keep the units (and count them toward daily totals) but mark the rate
+    // unreliable so it's excluded from average-UPH calculations.
+    const reliable = minutes >= 10;
+    if (!reliable) skippedShort++;
+    const uph = reliable ? g.units / (minutes / 60) : null;
+    out.push({
+      associateId, tranType: g.tranType, shiftDate: g.shiftDate, units: g.units,
+      minutes: Math.round(minutes), uph: uph != null ? Math.round(uph * 100) / 100 : null, reliable
+    });
   });
 
   log.textContent += `Aggregated to ${out.length} associate/day/function record(s).\n`;
-  if (skippedNoAssoc) log.textContent += `Skipped ${skippedNoAssoc} group(s): Employee Id not found in Associates admin tab.\n`;
-  if (skippedShort) log.textContent += `Skipped ${skippedShort} group(s): under 10 minutes of spread (unreliable rate).\n`;
+  if (skippedNoAssocIds.size) {
+    log.textContent += `${skippedNoAssocIds.size} Employee Id(s) not found in Associates admin tab (their units are NOT counted anywhere until added): ${[...skippedNoAssocIds].join(", ")}\n`;
+  }
+  if (skippedShort) log.textContent += `${skippedShort} record(s) had under 10 minutes of scan spread — units are still counted, but their UPH rate is excluded from averaging as unreliable.\n`;
+
+  // Per shiftDate / Tran Type breakdown, so you can match this against a specific number from
+  // your Shift Cost Sheet (e.g. "Packs (315) units packed" for one date).
+  const byDateType = {};
+  out.forEach(r => {
+    const key = `${r.shiftDate} | Tran Type ${r.tranType}`;
+    byDateType[key] = (byDateType[key] || 0) + r.units;
+  });
+  log.textContent += `\nUnits by date / Tran Type (315=Pack, 301=Pick, 305=Replen Pick, 306=Replen Put, 311=Cubby Outsort):\n`;
+  Object.keys(byDateType).sort().forEach(key => {
+    log.textContent += `  ${key}: ${byDateType[key]} units\n`;
+  });
+
   return out;
 }
 </script>
