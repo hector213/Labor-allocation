@@ -94,7 +94,8 @@
   .occupant .who{display:flex;align-items:center;gap:6px;min-width:0;}
   .occupant .who .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .occupant .hrs{width:52px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;}
-  .occupant button.remove{border:none;background:none;color:var(--bad);cursor:pointer;font-size:14px;line-height:1;}
+  .occupant button.remove{border:1px solid var(--bad);background:none;color:var(--bad);cursor:pointer;font-size:11px;line-height:1.4;padding:3px 7px;border-radius:5px;white-space:nowrap;}
+  .occupant button.remove:hover{background:var(--bad);color:#fff;}
   .flag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;margin-top:6px;}
   .flag.ok{background:var(--ok-bg);color:var(--ok);}
   .flag.warn{background:var(--warn-bg);color:var(--warn);}
@@ -164,9 +165,9 @@
         </div>
         <div class="shift-stat">Shift progress <b id="stat-progress">0%</b></div>
         <div class="shift-stat">Pack-out so far (last import) <b id="stat-outbound">0</b></div>
-        <div class="shift-stat">Projected EOS total <b id="stat-projected">0</b></div>
-        <div class="shift-stat">Combined goal <b id="stat-goal">0</b></div>
-        <div class="shift-stat">Overall pace <b id="stat-pace">0%</b></div>
+        <div class="shift-stat">Projected EOS total (Pack) <b id="stat-projected">0</b></div>
+        <div class="shift-stat">Combined goal (Pack) <b id="stat-goal">0</b></div>
+        <div class="shift-stat">Overall pace (Pack) <b id="stat-pace">0%</b></div>
         <div class="shift-progress-bar"><div id="shift-progress-fill" style="width:0%"></div></div>
       </div>
 
@@ -727,8 +728,15 @@ function renderBoard() {
         }
       }
 
-      totalProjected += projectedUnits;
-      if (goal) totalGoal += goal.targetUnits;
+      // "Projected EOS total" (and the goal/pace it's compared against) is meant to read as your
+      // pack-out projection specifically, not a mix of every function's units added together —
+      // Pick/Replen/Outsort units aren't the same currency as Pack units, so summing them into
+      // one number was misleading. Only Pack (315) stations feed the hero stat bar now; every
+      // station still shows its own projected total/goal/flag on its own card either way.
+      if (st.tranType === PACKOUT_TRAN_TYPE) {
+        totalProjected += projectedUnits;
+        if (goal) totalGoal += goal.targetUnits;
+      }
       zoneGrid.appendChild(card);
     });
 
@@ -804,10 +812,17 @@ function occupantRow(seg, a, uph, hrs, functionKey) {
   row.innerHTML = `
     <span class="who">${nameHtml} <span style="color:var(--muted)">(${uph.toFixed(1)} UPH)</span></span>
     <span>
-      <input class="hrs" type="number" step="0.25" value="${hrs}" title="Hours in function">
-      <button class="remove" title="Return to pool">✕</button>
+      <input class="hrs" type="number" step="0.25" value="${hrs}" title="Hours in function" draggable="false">
+      <button class="remove" type="button" draggable="false" title="Return to pool">✕ Remove</button>
     </span>`;
-  row.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", seg.associateId));
+  // The whole row is draggable (so you can drag someone straight to another station), but that
+  // swallows clicks on the nested Remove button / hours input: a tiny mouse move while clicking
+  // gets read as "start dragging the row" instead of "click the button." Bail out of the drag
+  // entirely when it's starting from one of those controls so their click/change still fires.
+  row.addEventListener("dragstart", e => {
+    if (e.target.closest(".remove, .hrs")) { e.preventDefault(); return; }
+    e.dataTransfer.setData("text/plain", seg.associateId);
+  });
   row.querySelector(".hrs").addEventListener("change", e => {
     db.collection("assignments").doc(currentShiftDate).collection("segments").doc(seg.id)
       .update({ hoursInFunction: parseFloat(e.target.value) || 0 });
