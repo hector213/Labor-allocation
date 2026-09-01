@@ -162,6 +162,7 @@
             <label for="shift-date">Shift date</label>
             <input type="date" id="shift-date">
           </div>
+          <button class="btn secondary" id="clear-assignments-btn" title="Fixes anyone stuck 'assigned' from the duplicate-segment bug">Reset today's assignments</button>
         </div>
         <div class="shift-stat">Shift progress <b id="stat-progress">0%</b></div>
         <div class="shift-stat">Pack-out so far (last import) <b id="stat-outbound">0</b></div>
@@ -650,7 +651,18 @@ function renderBoard() {
     groups[key].forEach(a => dropTarget.appendChild(associateCard(a, key || null)));
     poolEl.appendChild(block);
   });
-  wireDropZone(poolEl, null);
+  // poolEl is a persistent DOM node (fetched once via getElementById), not recreated each
+  // render like the per-station dropZone divs are — so wiring it fresh on every renderBoard()
+  // call (which fires on every Firestore snapshot: segments, stations, associates, goals,
+  // uphHistory all trigger one) was stacking a new set of dragover/dragleave/drop listeners on
+  // top of the old ones every time, forever. A single drop was firing handleDrop() once per
+  // accumulated listener — for a drop onto a station, that meant several duplicate segment
+  // documents got created for the same move, and closing one via Remove left the others active,
+  // so the associate never actually made it back to available. Wire it exactly once.
+  if (!poolEl.dataset.wired) {
+    wireDropZone(poolEl, null);
+    poolEl.dataset.wired = "1";
+  }
 
   // ---- Floor Grid, grouped into zones ----
   const wrap = document.getElementById("stations-wrap");
@@ -889,6 +901,23 @@ async function closeSegment(seg) {
   await db.collection("assignments").doc(currentShiftDate).collection("segments").doc(seg.id)
     .update({ endTime: now, hoursInFunction: Math.round(hours * 100) / 100 });
 }
+
+// One-time cleanup for the duplicate-listener bug: closes every still-active segment for the
+// currently viewed shift date, so anyone stuck "assigned" from a move that silently created
+// several duplicate segment docs gets fully freed back to the pool. Safe to run any time —
+// it only touches segments that are already open (no endTime); anything already closed is
+// left alone, and there's nothing to lose since the drag-and-drop board is meant to reflect
+// live real-time placement, not a permanent record.
+document.getElementById("clear-assignments-btn").addEventListener("click", async () => {
+  if (!confirm(`Close every active assignment for ${currentShiftDate}? Everyone will return to the labor pool — you'll need to re-drag them.`)) return;
+  const openSegs = segments.filter(s => !s.endTime);
+  if (!openSegs.length) { alert("Nothing active to reset."); return; }
+  const now = firebase.firestore.Timestamp.now();
+  const batch = db.batch();
+  const segRef = db.collection("assignments").doc(currentShiftDate).collection("segments");
+  openSegs.forEach(seg => batch.update(segRef.doc(seg.id), { endTime: now }));
+  await batch.commit();
+});
 
 /* ======================================================================
    ADMIN: STATIONS
