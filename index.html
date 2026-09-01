@@ -185,6 +185,16 @@
           <div class="field"><label>Associate Id (IE#)</label><input id="new-assoc-code"></div>
           <button class="btn" id="add-assoc-btn">Add associate</button>
         </div>
+        <div class="note">
+          <b>Bulk add:</b> paste one Employee Id per line (matching the "Employee Id" column in your transaction
+          export exactly). Display name defaults to the Employee Id &mdash; rename any of them in the table below.
+          Existing Employee Ids are skipped, so this is safe to re-run.
+        </div>
+        <div class="field-row">
+          <textarea id="bulk-assoc-input" rows="6" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;" placeholder="NVABENFORD&#10;NVADELGADO&#10;..."></textarea>
+        </div>
+        <button class="btn secondary" id="bulk-add-assoc-btn">Bulk add</button>
+        <div id="bulk-assoc-log" class="note hidden"></div>
         <table class="admin-table" id="assoc-table">
           <thead><tr><th>Employee Id</th><th>Name</th><th>Associate Id</th><th>Active</th><th></th></tr></thead>
           <tbody></tbody>
@@ -703,6 +713,28 @@ document.getElementById("add-assoc-btn").addEventListener("click", async () => {
   document.getElementById("new-assoc-eid").value = "";
   document.getElementById("new-assoc-name").value = "";
   document.getElementById("new-assoc-code").value = "";
+});
+
+document.getElementById("bulk-add-assoc-btn").addEventListener("click", async () => {
+  const raw = document.getElementById("bulk-assoc-input").value;
+  const ids = raw.split("\n").map(s => s.trim()).filter(Boolean);
+  const logEl = document.getElementById("bulk-assoc-log");
+  logEl.classList.remove("hidden");
+  if (!ids.length) { logEl.textContent = "Paste at least one Employee Id first."; return; }
+
+  const existing = new Set(associates.map(a => a.employeeId));
+  const toAdd = [...new Set(ids)].filter(id => !existing.has(id));
+  const skipped = ids.length - toAdd.length;
+
+  if (!toAdd.length) { logEl.textContent = `Nothing to add — all ${ids.length} already exist.`; return; }
+
+  const batch = db.batch();
+  toAdd.forEach(id => {
+    batch.set(db.collection("associates").doc(), { employeeId: id, name: id, associateCode: "", active: true });
+  });
+  await batch.commit();
+  logEl.textContent = `Added ${toAdd.length} associate(s).` + (skipped ? ` Skipped ${skipped} already on file.` : "");
+  document.getElementById("bulk-assoc-input").value = "";
 });
 
 function renderAssociatesAdmin() {
