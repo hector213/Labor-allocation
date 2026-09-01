@@ -394,7 +394,15 @@ function todayShiftDateStr(d) {
   cutoff.setHours(Math.floor(end), (end % 1) * 60, 0, 0);
   const shiftDay = new Date(d);
   if (d < cutoff) shiftDay.setDate(shiftDay.getDate() - 1);
-  return shiftDay.toISOString().slice(0, 10); // YYYY-MM-DD
+  // NOTE: deliberately NOT toISOString() here — that converts to UTC first, which shifts
+  // the calendar-date label whenever the browser's local timezone isn't UTC (e.g. Las Vegas
+  // is UTC-7 in September, close enough to the 5 PM shift start that it split one continuous
+  // overnight shift across two different UTC dates). Build the string from local getters so
+  // the label always matches local wall-clock date, regardless of timezone.
+  const y = shiftDay.getFullYear();
+  const m = String(shiftDay.getMonth() + 1).padStart(2, "0");
+  const day = String(shiftDay.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`; // YYYY-MM-DD, local
 }
 
 // Classifies a fractional-hour timestamp (e.g. 17.5 = 5:30 PM) as "core" (always counted),
@@ -1092,9 +1100,15 @@ function parseTransactionFile(file) {
     const reader = new FileReader();
     reader.onload = e => {
       try {
+        // raw: true (not false) so date cells come through as real JS Date objects instead of
+        // formatted strings — with raw: false, "Date Time" cells were being stringified and then
+        // re-parsed with new Date(string) in cleanRows, which is a second source of the same
+        // timezone/date-boundary trouble that todayShiftDateStr had. cleanQty() below already
+        // handles numeric Tran Qty values whether they arrive as numbers or strings, so this is
+        // safe for the non-date columns too.
         const wb = XLSX.read(e.target.result, { type: "array", cellDates: true });
         const firstSheet = wb.SheetNames[0];
-        const raw = XLSX.utils.sheet_to_json(wb.Sheets[firstSheet], { header: 1, raw: false });
+        const raw = XLSX.utils.sheet_to_json(wb.Sheets[firstSheet], { header: 1, raw: true });
         resolve(raw);
       } catch (err) { reject(err); }
     };
@@ -1132,8 +1146,16 @@ function cleanRows(raw, log) {
   // "core" shift window (always kept), the "grace" window (kept only on nights that ran
   // the extra hour), or "outside" (a different shift entirely — dropped).
   const withDerived = objs.map(o => {
-    const dt = o["Date Time"] instanceof Date ? o["Date Time"] : new Date(o["Date Time"]);
-    if (isNaN(dt)) return null;
+    const rawDt = o["Date Time"] instanceof Date ? o["Date Time"] : new Date(o["Date Time"]);
+    if (isNaN(rawDt)) return null;
+    // SheetJS (cellDates: true) builds Date objects from Excel serial dates using UTC-based
+    // fields — i.e. the wall-clock time Excel shows lives in the UTC getters, not the local
+    // ones. Reconstruct a genuine local Date from those UTC fields so every getHours()/
+    // getDate()/etc. downstream (here and in todayShiftDateStr) reads the correct wall-clock
+    // value regardless of the browser's timezone, instead of silently shifting by the local
+    // UTC offset.
+    const dt = new Date(rawDt.getUTCFullYear(), rawDt.getUTCMonth(), rawDt.getUTCDate(),
+      rawDt.getUTCHours(), rawDt.getUTCMinutes(), rawDt.getUTCSeconds());
     const shiftDate = todayShiftDateStr(dt);
     const hh = dt.getHours() + dt.getMinutes() / 60;
     return {
