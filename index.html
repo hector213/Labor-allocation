@@ -1179,9 +1179,10 @@ function cleanRows(raw, log) {
   // Step 3: derive Date Only / Time Only / ShiftDate, and flag whether each row falls in the
   // fixed overnight window (mirrors OvernightFlag: Time >= 5:00 PM OR Time <= 4:30 AM, every
   // night, no per-night detection).
+  let droppedBadDate = 0, droppedBadQty = 0, droppedNoTranType = 0;
   const withDerived = objs.map(o => {
     const rawDt = o["Date Time"] instanceof Date ? o["Date Time"] : new Date(o["Date Time"]);
-    if (isNaN(rawDt)) return null;
+    if (isNaN(rawDt)) { droppedBadDate++; return null; }
     // SheetJS (cellDates: true) builds Date objects from Excel serial dates using UTC-based
     // fields — i.e. the wall-clock time Excel shows lives in the UTC getters, not the local
     // ones. Reconstruct a genuine local Date from those UTC fields so every getHours()/
@@ -1192,19 +1193,49 @@ function cleanRows(raw, log) {
       rawDt.getUTCHours(), rawDt.getUTCMinutes(), rawDt.getUTCSeconds());
     const shiftDate = todayShiftDateStr(dt);
     const hh = dt.getHours() + dt.getMinutes() / 60;
+    const qty = cleanQty(o["Tran Qty"]);
+    const tranType = String(o["Tran Type"] || "").trim();
+    if (qty == null) { droppedBadQty++; return null; }
+    if (!tranType) { droppedNoTranType++; return null; }
     return {
       empId: String(o["Employee Id"]).trim(),
-      tranType: String(o["Tran Type"] || "").trim(),
+      tranType,
       itemNumber: o["Item Number"] != null ? String(o["Item Number"]).trim() : "",
       dateTime: dt,
       shiftDate,
       inWindow: inShiftWindow(hh),
-      qty: cleanQty(o["Tran Qty"])
+      qty
     };
-  }).filter(r => r && r.qty != null && r.tranType);
+  }).filter(r => r);
+
+  if (droppedBadDate || droppedBadQty || droppedNoTranType) {
+    log.textContent += `Dropped before any window/dedup logic: ${droppedBadDate} row(s) with an unparseable Date Time, ${droppedBadQty} row(s) with an unparseable Tran Qty, ${droppedNoTranType} row(s) with a blank Tran Type.\n`;
+  }
+
+  // Diagnostic: raw Pack (315) totals per Employee Id BEFORE the window filter and BEFORE
+  // dedup, so a known-correct per-person number can be checked against each stage in turn.
+  const rawPackByEmp = {};
+  withDerived.forEach(r => {
+    if (r.tranType !== PACKOUT_TRAN_TYPE) return;
+    rawPackByEmp[r.empId] = (rawPackByEmp[r.empId] || 0) + r.qty;
+  });
+  log.textContent += `\nPack (315) units by Employee Id, ALL rows parsed (before overnight-window filter, before de-dup):\n`;
+  Object.keys(rawPackByEmp).sort().forEach(id => {
+    log.textContent += `  ${id}: ${rawPackByEmp[id]} units\n`;
+  });
 
   const shiftRows = withDerived.filter(r => r.inWindow);
-  log.textContent += `${shiftRows.length} rows after overnight filter (5:00 PM - ${String(Math.floor(shiftMaxEndHour())).padStart(2,"0")}:${String(Math.round((shiftMaxEndHour() % 1) * 60)).padStart(2,"0")} AM).\n`;
+  log.textContent += `\n${shiftRows.length} rows after overnight filter (5:00 PM - ${String(Math.floor(shiftMaxEndHour())).padStart(2,"0")}:${String(Math.round((shiftMaxEndHour() % 1) * 60)).padStart(2,"0")} AM).\n`;
+
+  const windowedPackByEmp = {};
+  shiftRows.forEach(r => {
+    if (r.tranType !== PACKOUT_TRAN_TYPE) return;
+    windowedPackByEmp[r.empId] = (windowedPackByEmp[r.empId] || 0) + r.qty;
+  });
+  log.textContent += `Pack (315) units by Employee Id, AFTER overnight-window filter (before de-dup):\n`;
+  Object.keys(windowedPackByEmp).sort().forEach(id => {
+    log.textContent += `  ${id}: ${windowedPackByEmp[id]} units\n`;
+  });
 
   // Step 4: dedupe on {Tran Type, Employee Id, Date Time, Item Number, Tran Qty} — matches the
   // workbook's Table.Distinct key exactly. Item Number matters: two different items scanned by
@@ -1217,7 +1248,7 @@ function cleanRows(raw, log) {
     seen.add(key);
     return true;
   });
-  log.textContent += `${deduped.length} rows after de-dup.\n`;
+  log.textContent += `\n${deduped.length} rows after de-dup.\n`;
   return deduped;
 }
 
