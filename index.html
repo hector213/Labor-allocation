@@ -388,31 +388,27 @@ let unsubSegments = null;
 
 /* ======================================================================
    SHIFT DATE / WINDOW HELPERS
-   Driven by Settings > shift start/length/grace (default 5:00 PM + 10.5h = 3:30 AM core end,
-   +1h grace = 4:30 AM max). The core window (5:00 PM - 3:30 AM) is always counted. The grace
-   window (3:30 - 4:30 AM) is a maybe: your shift only runs that late some nights ("Extra Hour
-   Running"), and on nights it doesn't, that hour belongs to the next shift starting early.
-   The import pipeline auto-detects which nights ran the extra hour (see cleanRows) instead of
-   guessing with one fixed cutoff — same idea as the "Extra Hour Running?" check in Employee_UPH,
-   just automatic instead of a per-associate manual flag.
+   Ported to match the actual Overnight_Daily Power Query exactly: a single FIXED window,
+   Time >= shiftStartHour (5:00 PM) OR Time <= shiftMaxEndHour (4:30 AM) — every night, no
+   per-night "did we run the extra hour" detection. (An earlier version of this file tried to
+   auto-detect that per night, but the real workbook doesn't — it just always includes up to
+   4:30 AM, and on a night that wrapped up earlier there's simply nothing scanned in that
+   trailing window, so it's harmless to always include.) Driven by Settings > shift
+   start/length/grace so the boundary stays configurable (default 17 + 10.5 + 1 = 4:30 AM).
    ====================================================================== */
-function shiftCoreEndHour() {
-  return (appSettings.shiftStartHour + appSettings.shiftLengthHours) % 24;
-}
 function shiftMaxEndHour() {
   return (appSettings.shiftStartHour + appSettings.shiftLengthHours + (appSettings.shiftGraceHours || 0)) % 24;
 }
 
-// A scan/action at or after the MAX possible end (core + grace) belongs to the PRIOR
-// calendar day's shift. Uses the outer bound so a legitimate extra-hour scan still buckets
-// to the correct night even before we've decided whether that night gets the extra hour.
+// A scan/action at or before the max end belongs to the PRIOR calendar day's shift.
+// Mirrors the workbook's `if [Time Only] <= 4:30:00 then Date.AddDays(-1) else Date Only`.
 function todayShiftDateStr(d) {
   d = d || new Date();
   const end = shiftMaxEndHour();
   const cutoff = new Date(d);
   cutoff.setHours(Math.floor(end), (end % 1) * 60, 0, 0);
   const shiftDay = new Date(d);
-  if (d < cutoff) shiftDay.setDate(shiftDay.getDate() - 1);
+  if (d <= cutoff) shiftDay.setDate(shiftDay.getDate() - 1);
   // NOTE: deliberately NOT toISOString() here — that converts to UTC first, which shifts
   // the calendar-date label whenever the browser's local timezone isn't UTC (e.g. Las Vegas
   // is UTC-7 in September, close enough to the 5 PM shift start that it split one continuous
@@ -424,14 +420,10 @@ function todayShiftDateStr(d) {
   return `${y}-${m}-${day}`; // YYYY-MM-DD, local
 }
 
-// Classifies a fractional-hour timestamp (e.g. 17.5 = 5:30 PM) as "core" (always counted),
-// "grace" (counted only on nights that ran the extra hour), or "outside" the shift entirely.
-function shiftWindowZone(hh) {
-  const start = appSettings.shiftStartHour, coreEnd = shiftCoreEndHour(), maxEnd = shiftMaxEndHour();
-  const inCore = start <= coreEnd ? (hh >= start && hh <= coreEnd) : (hh >= start || hh <= coreEnd);
-  if (inCore) return "core";
-  const inGrace = coreEnd <= maxEnd ? (hh > coreEnd && hh <= maxEnd) : (hh > coreEnd || hh <= maxEnd);
-  return inGrace ? "grace" : "outside";
+// Mirrors OvernightFlag: [Time Only] >= 5:00 PM OR [Time Only] <= 4:30 AM (fixed, every night).
+function inShiftWindow(hh) {
+  const start = appSettings.shiftStartHour, maxEnd = shiftMaxEndHour();
+  return start <= maxEnd ? (hh >= start && hh <= maxEnd) : (hh >= start || hh <= maxEnd);
 }
 
 /* ======================================================================
@@ -1184,9 +1176,9 @@ function cleanRows(raw, log) {
     return isNaN(n) ? null : n;
   };
 
-  // Step 3: derive Date Only / Time Only / ShiftDate, and classify each row into the
-  // "core" shift window (always kept), the "grace" window (kept only on nights that ran
-  // the extra hour), or "outside" (a different shift entirely — dropped).
+  // Step 3: derive Date Only / Time Only / ShiftDate, and flag whether each row falls in the
+  // fixed overnight window (mirrors OvernightFlag: Time >= 5:00 PM OR Time <= 4:30 AM, every
+  // night, no per-night detection).
   const withDerived = objs.map(o => {
     const rawDt = o["Date Time"] instanceof Date ? o["Date Time"] : new Date(o["Date Time"]);
     if (isNaN(rawDt)) return null;
@@ -1203,36 +1195,24 @@ function cleanRows(raw, log) {
     return {
       empId: String(o["Employee Id"]).trim(),
       tranType: String(o["Tran Type"] || "").trim(),
+      itemNumber: o["Item Number"] != null ? String(o["Item Number"]).trim() : "",
       dateTime: dt,
       shiftDate,
-      zone: shiftWindowZone(hh),
+      inWindow: inShiftWindow(hh),
       qty: cleanQty(o["Tran Qty"])
     };
   }).filter(r => r && r.qty != null && r.tranType);
 
-  // Step 4: auto-detect which nights ran the extra hour — same signal as the sheet's
-  // "Extra Hour Running?" check (Pack activity in the grace window), just computed per
-  // night across the whole file instead of manually per associate.
-  const extendedDates = new Set();
-  withDerived.forEach(r => {
-    if (r.zone === "grace" && r.tranType === PACKOUT_TRAN_TYPE) extendedDates.add(r.shiftDate);
-  });
+  const shiftRows = withDerived.filter(r => r.inWindow);
+  log.textContent += `${shiftRows.length} rows after overnight filter (5:00 PM - ${String(Math.floor(shiftMaxEndHour())).padStart(2,"0")}:${String(Math.round((shiftMaxEndHour() % 1) * 60)).padStart(2,"0")} AM).\n`;
 
-  const coreRows = withDerived.filter(r => r.zone === "core");
-  const graceKeptRows = withDerived.filter(r => r.zone === "grace" && extendedDates.has(r.shiftDate));
-  const graceDroppedCount = withDerived.filter(r => r.zone === "grace" && !extendedDates.has(r.shiftDate)).length;
-  const shiftRows = [...coreRows, ...graceKeptRows];
-
-  log.textContent += `${shiftRows.length} rows after shift-window filter (${coreRows.length} in the core window`;
-  log.textContent += extendedDates.size
-    ? `; ${graceKeptRows.length} more from the grace window on ${extendedDates.size} night(s) that ran the extra hour: ${[...extendedDates].sort().join(", ")}`
-    : `; no nights in this file show Pack activity in the grace window, so nothing from it was included`;
-  log.textContent += graceDroppedCount ? `; ${graceDroppedCount} grace-window row(s) dropped as belonging to the next shift).\n` : `).\n`;
-
-  // Step 5: dedupe on {Tran Type, Employee Id, Date Time, Qty}
+  // Step 4: dedupe on {Tran Type, Employee Id, Date Time, Item Number, Tran Qty} — matches the
+  // workbook's Table.Distinct key exactly. Item Number matters: two different items scanned by
+  // the same associate at the same second for the same qty are legitimately separate rows, and
+  // leaving Item Number out of the key was collapsing them into one (undercounting units).
   const seen = new Set();
   const deduped = shiftRows.filter(r => {
-    const key = `${r.tranType}|${r.empId}|${r.dateTime.getTime()}|${r.qty}`;
+    const key = `${r.tranType}|${r.empId}|${r.dateTime.getTime()}|${r.itemNumber}|${r.qty}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -1256,10 +1236,16 @@ function aggregateToUPH(rows, log) {
 
   const out = [];
   const skippedNoAssocIds = new Set();
+  const skippedUnitsByDateType = {};
   let skippedShort = 0;
   Object.values(groups).forEach(g => {
     const associateId = associateByEmployeeId[g.empId];
-    if (!associateId) { skippedNoAssocIds.add(g.empId); return; }
+    if (!associateId) {
+      skippedNoAssocIds.add(g.empId);
+      const key = `${g.shiftDate} | Tran Type ${g.tranType}`;
+      skippedUnitsByDateType[key] = (skippedUnitsByDateType[key] || 0) + g.units;
+      return;
+    }
     const minMs = Math.min(...g.times), maxMs = Math.max(...g.times);
     const minutes = (maxMs - minMs) / 60000;
     // Units are real regardless of spread — only the derived UPH rate is unreliable on a short
@@ -1277,6 +1263,10 @@ function aggregateToUPH(rows, log) {
   log.textContent += `Aggregated to ${out.length} associate/day/function record(s).\n`;
   if (skippedNoAssocIds.size) {
     log.textContent += `${skippedNoAssocIds.size} Employee Id(s) not found in Associates admin tab (their units are NOT counted anywhere until added): ${[...skippedNoAssocIds].join(", ")}\n`;
+    log.textContent += `Units skipped because of that, by date / Tran Type (these are missing from every total until the Id is added):\n`;
+    Object.keys(skippedUnitsByDateType).sort().forEach(key => {
+      log.textContent += `  ${key}: ${skippedUnitsByDateType[key]} units\n`;
+    });
   }
   if (skippedShort) log.textContent += `${skippedShort} record(s) had under 10 minutes of scan spread — units are still counted, but their UPH rate is excluded from averaging as unreliable.\n`;
 
