@@ -79,10 +79,16 @@
   .trend-up{color:var(--ok);} .trend-down{color:var(--bad);} .trend-flat{color:var(--muted);}
   #pool-list.dragover, .station-slot.dragover, .station-bucket .bucket-drop.dragover{outline:2px dashed var(--accent);outline-offset:2px;}
 
-  .zone-block{margin-bottom:18px;}
-  .zone-block:last-child{margin-bottom:0;}
+  /* Each zone sizes itself to however many stations it actually holds (via flex-wrap on the
+     outer wrap, content-based width on each zone-block) instead of every zone being forced
+     into one same-size grid column — that was squeezing a 2-station zone like Pack into a
+     single 230px column and stacking its stations vertically instead of side by side. Zones
+     flow left to right and wrap to a new row once a row is full, so a zone with more stations
+     (Replen, Consolidation) naturally drops to the next row under the single-station zones
+     (OP/MOD/Walkie Pick) rather than distorting everyone else's layout. */
+  #stations-wrap{display:flex;flex-wrap:wrap;align-items:flex-start;gap:18px 24px;}
+  .zone-block{margin-bottom:0;}
   .zone-header{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;border-left:4px solid var(--accent);padding-left:8px;margin-bottom:8px;}
-  #stations-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
   .station-card{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--slot-bg);}
   .station-card.bucket{background:var(--bucket-bg);}
   .station-card h3{margin:0 0 2px;font-size:14px;}
@@ -692,7 +698,10 @@ function renderBoard() {
     zoneBlock.innerHTML = `<div class="zone-header">${zone.label}</div>`;
     const zoneGrid = document.createElement("div");
     zoneGrid.style.display = "grid";
-    zoneGrid.style.gridTemplateColumns = "repeat(auto-fill,minmax(230px,1fr))";
+    // Fixed-width columns (not minmax(...,1fr)) so this grid's natural width is exactly
+    // "however many stations it holds", which is what lets the parent zone-block size itself
+    // to its content under the flex-wrap layout above, instead of stretching to fill space.
+    zoneGrid.style.gridTemplateColumns = "repeat(auto-fill, 230px)";
     zoneGrid.style.gap = "12px";
     zoneBlock.appendChild(zoneGrid);
 
