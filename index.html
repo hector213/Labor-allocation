@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAS1 Labor Allocation</title>
+
+<!-- ============================================================
+     Firebase (compat build - simplest to use from plain <script> tags,
+     no bundler needed). Pinned version; bump when you want to upgrade.
+     ============================================================ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<!-- SheetJS - parses the transaction .xlsx/.csv export in the browser -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  :root{
+    --bg:#f4f6f8; --panel:#ffffff; --border:#dfe3e8; --text:#1c2530; --muted:#6b7684;
+    --accent:#2f6fed; --accent-dark:#1f4fb8; --ok:#1f8a4c; --ok-bg:#e6f6ec;
+    --warn:#b8860b; --warn-bg:#fdf3d8; --bad:#c62c2c; --bad-bg:#fce8e8;
+    --slot-bg:#eef2ff; --bucket-bg:#f7f5ff;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+  #login-view{max-width:360px;margin:12vh auto;background:var(--panel);padding:32px;border-radius:12px;border:1px solid var(--border);}
+  #login-view h1{font-size:20px;margin:0 0 4px;}
+  #login-view p{color:var(--muted);font-size:13px;margin-top:0;}
+  #login-view input{width:100%;padding:10px;margin:6px 0;border:1px solid var(--border);border-radius:6px;font-size:14px;}
+  #login-view button{width:100%;padding:10px;margin-top:10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;}
+  #login-view button:hover{background:var(--accent-dark);}
+  #login-error{color:var(--bad);font-size:13px;min-height:18px;}
+
+  header{display:flex;align-items:center;justify-content:space-between;background:var(--panel);border-bottom:1px solid var(--border);padding:10px 20px;}
+  header h1{font-size:16px;margin:0;}
+  header .who{font-size:12px;color:var(--muted);}
+  nav{display:flex;gap:8px;}
+  nav button{padding:6px 14px;border:1px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-size:13px;}
+  nav button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  #signout{font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;}
+
+  main{padding:16px 20px;max-width:1500px;margin:0 auto;}
+  .hidden{display:none !important;}
+
+  /* ---------- Board view ---------- */
+  #shift-bar{display:flex;gap:16px;align-items:center;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 16px;margin-bottom:14px;flex-wrap:wrap;}
+  #shift-bar label{font-size:12px;color:var(--muted);}
+  #shift-bar input[type=date]{padding:5px;border:1px solid var(--border);border-radius:6px;}
+  .shift-stat{font-size:13px;}
+  .shift-stat b{font-size:15px;}
+
+  #board-grid{display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start;}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;}
+  .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 10px;}
+
+  #pool-list{display:flex;flex-direction:column;gap:8px;min-height:60px;}
+  .assoc-card{background:#fbfcfe;border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:grab;font-size:13px;}
+  .assoc-card:active{cursor:grabbing;}
+  .assoc-card .name{font-weight:600;}
+  .assoc-card .meta{color:var(--muted);font-size:11px;margin-top:2px;display:flex;justify-content:space-between;}
+  .trend-up{color:var(--ok);} .trend-down{color:var(--bad);} .trend-flat{color:var(--muted);}
+  #pool-list.dragover, .station-slot.dragover, .station-bucket .bucket-drop.dragover{outline:2px dashed var(--accent);outline-offset:2px;}
+
+  #stations-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
+  .station-card{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--slot-bg);}
+  .station-card.bucket{background:var(--bucket-bg);}
+  .station-card h3{margin:0 0 2px;font-size:14px;}
+  .station-card .target{font-size:11px;color:var(--muted);margin-bottom:8px;}
+  .station-slot{min-height:56px;border:1px dashed var(--border);border-radius:8px;padding:6px;background:#fff;}
+  .station-slot .empty-hint{color:var(--muted);font-size:12px;text-align:center;padding:12px 0;}
+  .bucket-drop{min-height:40px;border:1px dashed var(--border);border-radius:8px;padding:6px;background:#fff;display:flex;flex-direction:column;gap:6px;}
+  .occupant{display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;}
+  .occupant .hrs{width:52px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;}
+  .occupant button.remove{border:none;background:none;color:var(--bad);cursor:pointer;font-size:14px;line-height:1;}
+  .flag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;margin-top:6px;}
+  .flag.ok{background:var(--ok-bg);color:var(--ok);}
+  .flag.warn{background:var(--warn-bg);color:var(--warn);}
+  .flag.bad{background:var(--bad-bg);color:var(--bad);}
+  .proj-line{font-size:12px;color:var(--muted);margin-top:4px;}
+
+  /* ---------- Admin view ---------- */
+  #admin-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+  #admin-tabs button{padding:6px 12px;border:1px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-size:13px;}
+  #admin-tabs button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .admin-pane{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;}
+  .admin-pane h2{font-size:15px;margin-top:0;}
+  table.admin-table{width:100%;border-collapse:collapse;font-size:13px;}
+  table.admin-table th, table.admin-table td{border-bottom:1px solid var(--border);padding:6px 8px;text-align:left;}
+  table.admin-table input{width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:13px;}
+  .row-actions button{border:1px solid var(--border);background:#fff;border-radius:5px;padding:4px 8px;font-size:12px;cursor:pointer;}
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;}
+  .btn:hover{background:var(--accent-dark);}
+  .btn.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
+  .btn.danger{background:var(--bad);}
+  .field-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;align-items:flex-end;}
+  .field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);}
+  .field input, .field select{padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);}
+  #import-log{background:#0f1520;color:#c8d6ee;font-family:ui-monospace,Consolas,monospace;font-size:12px;padding:10px;border-radius:8px;max-height:260px;overflow:auto;white-space:pre-wrap;margin-top:12px;}
+  .note{font-size:12px;color:var(--muted);background:#f7f9fb;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:14px;}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="login-view">
+  <h1>LAS1 Labor Allocation</h1>
+  <p>Sign in with your team account.</p>
+  <input type="email" id="login-email" placeholder="Email" autocomplete="username">
+  <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+  <button id="login-btn">Sign In</button>
+  <div id="login-error"></div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app-view" class="hidden">
+  <header>
+    <h1>LAS1 Labor Allocation</h1>
+    <nav>
+      <button id="nav-board" class="active">Board</button>
+      <button id="nav-admin">Admin</button>
+    </nav>
+    <div>
+      <span class="who" id="who-label"></span>
+      <button id="signout">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ---------- BOARD VIEW ---------- -->
+    <section id="board-view">
+      <div id="shift-bar">
+        <div class="field">
+          <label for="shift-date">Shift date</label>
+          <input type="date" id="shift-date">
+        </div>
+        <div class="shift-stat">Projected shift volume: <b id="stat-projected">0</b></div>
+        <div class="shift-stat">Combined goal: <b id="stat-goal">0</b></div>
+        <div class="shift-stat">Variance: <b id="stat-variance">0</b></div>
+      </div>
+
+      <div id="board-grid">
+        <div class="panel">
+          <h2>Labor Pool</h2>
+          <div id="pool-list"></div>
+        </div>
+        <div class="panel">
+          <h2>Stations</h2>
+          <div id="stations-wrap"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- ADMIN VIEW ---------- -->
+    <section id="admin-view" class="hidden">
+      <div id="admin-tabs">
+        <button class="admin-tab-btn active" data-tab="stations">Stations</button>
+        <button class="admin-tab-btn" data-tab="associates">Associates</button>
+        <button class="admin-tab-btn" data-tab="goals">Shift Goals</button>
+        <button class="admin-tab-btn" data-tab="import">Import Data</button>
+        <button class="admin-tab-btn" data-tab="settings">Settings</button>
+      </div>
+
+      <!-- Stations tab -->
+      <div class="admin-pane admin-tab" data-tab="stations">
+        <h2>Stations &amp; UPH Targets</h2>
+        <div class="note">
+          "Slot" stations hold exactly one associate (Pack). "Bucket" functions can hold any number of associates
+          (Pick/Replen/Consolidation). Counts and targets here are starting points &mdash; adjust freely.
+        </div>
+        <button class="btn secondary" id="seed-btn">Seed default stations (run once)</button>
+        <table class="admin-table" id="stations-table" style="margin-top:12px;">
+          <thead><tr><th>Name</th><th>Function</th><th>Type</th><th>Tran Type</th><th>Set UPH</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Associates tab -->
+      <div class="admin-pane admin-tab hidden" data-tab="associates">
+        <h2>Associates</h2>
+        <div class="field-row">
+          <div class="field"><label>Employee Id (login/handle)</label><input id="new-assoc-eid"></div>
+          <div class="field"><label>Display name</label><input id="new-assoc-name"></div>
+          <div class="field"><label>Associate Id (IE#)</label><input id="new-assoc-code"></div>
+          <button class="btn" id="add-assoc-btn">Add associate</button>
+        </div>
+        <table class="admin-table" id="assoc-table">
+          <thead><tr><th>Employee Id</th><th>Name</th><th>Associate Id</th><th>Active</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Shift Goals tab -->
+      <div class="admin-pane admin-tab hidden" data-tab="goals">
+        <h2>Shift Goals</h2>
+        <div class="note">Goals change day to day &mdash; set them fresh each shift for whichever functions matter tonight.</div>
+        <div class="field-row">
+          <div class="field"><label>Date</label><input type="date" id="goal-date"></div>
+          <div class="field"><label>Function</label><select id="goal-function"></select></div>
+          <div class="field"><label>Target units</label><input type="number" id="goal-units"></div>
+          <div class="field"><label>Planned hours</label><input type="number" id="goal-hours" step="0.25"></div>
+          <button class="btn" id="save-goal-btn">Save goal</button>
+        </div>
+        <table class="admin-table" id="goals-table">
+          <thead><tr><th>Function</th><th>Target Units</th><th>Planned Hours</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Import tab -->
+      <div class="admin-pane admin-tab hidden" data-tab="import">
+        <h2>Import Transaction Data</h2>
+        <div class="note">
+          Replicates the Shift_Cost_Sheet Power Query cleaning: skips the junk header row, promotes real headers,
+          derives ShiftDate (rolls to the prior day for scans before 4:30 AM), keeps only overnight scans
+          (5:00 PM&ndash;4:30 AM), dedupes, then averages UPH per associate per Tran Type per day.
+          <br><br>
+          <b>Note on Pick codes:</b> Tran Type 301 covers MOD/OP/Walkie Pick alike &mdash; the raw scan data can't
+          tell those apart on its own (same as in the Excel sheet, where you pick the Role manually). Historical
+          UPH for any Pick bucket sharing a Tran Type will use the same underlying data until that's refined.
+        </div>
+        <input type="file" id="import-file" accept=".xlsx,.xls,.csv">
+        <button class="btn" id="import-btn">Parse &amp; Preview</button>
+        <button class="btn secondary hidden" id="commit-btn">Write to History</button>
+        <div id="import-log"></div>
+      </div>
+
+      <!-- Settings tab -->
+      <div class="admin-pane admin-tab hidden" data-tab="settings">
+        <h2>Calculation Settings</h2>
+        <div class="field-row">
+          <div class="field"><label>Average UPH window (# of shifts)</label><input type="number" id="set-window"></div>
+          <div class="field"><label>Trend: recent period (days)</label><input type="number" id="set-recent"></div>
+          <div class="field"><label>Trend: prior period (days)</label><input type="number" id="set-prior"></div>
+          <button class="btn" id="save-settings-btn">Save settings</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ======================================================================
+   FIREBASE CONFIG
+   Replace with YOUR Firebase project's config (Project Settings > Your apps).
+   ====================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyAaNdlLoZRS0z-1ZflQBqt0rTYd9Njt5bU",
+  authDomain: "labor-allocation-tool-615a5.firebaseapp.com",
+  projectId: "labor-allocation-tool-615a5",
+  storageBucket: "labor-allocation-tool-615a5.firebasestorage.app",
+  messagingSenderId: "603347932638",
+  appId: "1:603347932638:web:d77b845fd1ba901d17b94f"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+/* ======================================================================
+   FUNCTION / STATION DEFINITIONS
+   tranType maps to the code(s) used in your transaction export.
+   type: 'slot' = fixed physical stations, one associate each (Pack).
+         'bucket' = single drop-zone, any number of associates (Pick/Replen/Consolidation).
+   ====================================================================== */
+const FUNCTIONS = {
+  SMALL_PACK:          { name: "Small Pack",           tranType: "315", defaultUPH: 75,  type: "slot",   count: 8 },
+  LARGE_PACK:          { name: "Large Pack",            tranType: "315", defaultUPH: 22,  type: "slot",   count: 6 },
+  LARGE_PACK_CUBBIES:  { name: "Large Pack Cubbies",    tranType: "315", defaultUPH: 30,  type: "slot",   count: 1 },
+  OP_PICK:             { name: "OP Pick",                tranType: "301", defaultUPH: 35,  type: "bucket" },
+  MOD_PICK:            { name: "MOD Pick",               tranType: "301", defaultUPH: 85,  type: "bucket" },
+  WALKIE_PICK:         { name: "Walkie Pick",             tranType: "301", defaultUPH: 75,  type: "bucket" },
+  REPLEN_PICK:         { name: "Replenishment Pick",      tranType: "305", defaultUPH: 100, type: "bucket" },
+  REPLEN_PUT:          { name: "Replenishment Put",       tranType: "306", defaultUPH: 100, type: "bucket" },
+  CUBBY_OUTSORT:       { name: "Cubby Outsort",           tranType: "311", defaultUPH: 75,  type: "bucket" },
+  LARGE_CONSOLIDATION: { name: "Large Consolidation",     tranType: null,  defaultUPH: 50,  type: "bucket", placeholder: true },
+  SMALL_CONSOLIDATION: { name: "Small Consolidation",     tranType: null,  defaultUPH: 50,  type: "bucket", placeholder: true }
+};
+
+/* Default calc settings (overridden by /settings/appSettings once saved) */
+let appSettings = { avgUphWindowShifts: 15, trendRecentDays: 14, trendPriorDays: 14 };
+
+/* ======================================================================
+   STATE (populated by Firestore listeners)
+   ====================================================================== */
+let stations = [];       // {id, name, functionKey, tranType, setUPH, type, order}
+let associates = [];     // {id, employeeId, name, associateCode, active}
+let uphHistory = [];     // {id, associateId, tranType, shiftDate, units, minutes, uph}
+let segments = [];       // active shift's segments: {id, associateId, stationId, functionKey, startTime, endTime, hoursInFunction}
+let shiftGoalsToday = []; // {id, functionKey, targetUnits, plannedHours}
+let currentShiftDate = todayShiftDateStr();
+let unsubSegments = null;
+
+/* ======================================================================
+   SHIFT DATE HELPER
+   Mirrors the workbook's ShiftDate rule: a scan/action before 4:30 AM
+   belongs to the PRIOR calendar day's shift.
+   ====================================================================== */
+function todayShiftDateStr(d) {
+  d = d || new Date();
+  const cutoff = new Date(d);
+  cutoff.setHours(4, 30, 0, 0);
+  const shiftDay = new Date(d);
+  if (d < cutoff) shiftDay.setDate(shiftDay.getDate() - 1);
+  return shiftDay.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+/* ======================================================================
+   AUTH
+   ====================================================================== */
+document.getElementById("login-btn").addEventListener("click", () => {
+  const email = document.getElementById("login-email").value.trim();
+  const pw = document.getElementById("login-password").value;
+  document.getElementById("login-error").textContent = "";
+  auth.signInWithEmailAndPassword(email, pw).catch(err => {
+    document.getElementById("login-error").textContent = err.message;
+  });
+});
+document.getElementById("signout").addEventListener("click", () => auth.signOut());
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    document.getElementById("login-view").classList.add("hidden");
+    document.getElementById("app-view").classList.remove("hidden");
+    document.getElementById("who-label").textContent = user.email;
+    startListeners();
+  } else {
+    document.getElementById("login-view").classList.remove("hidden");
+    document.getElementById("app-view").classList.add("hidden");
+  }
+});
+
+/* ======================================================================
+   NAV
+   ====================================================================== */
+document.getElementById("nav-board").addEventListener("click", () => showView("board"));
+document.getElementById("nav-admin").addEventListener("click", () => showView("admin"));
+function showView(v) {
+  document.getElementById("board-view").classList.toggle("hidden", v !== "board");
+  document.getElementById("admin-view").classList.toggle("hidden", v !== "admin");
+  document.getElementById("nav-board").classList.toggle("active", v === "board");
+  document.getElementById("nav-admin").classList.toggle("active", v === "admin");
+}
+
+document.querySelectorAll(".admin-tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".admin-tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".admin-tab").forEach(p => p.classList.add("hidden"));
+    btn.classList.add("active");
+    document.querySelector(`.admin-tab[data-tab="${btn.dataset.tab}"]`).classList.remove("hidden");
+  });
+});
+
+/* ======================================================================
+   FIRESTORE LISTENERS
+   ====================================================================== */
+function startListeners() {
+  db.collection("settings").doc("appSettings").onSnapshot(snap => {
+    if (snap.exists) appSettings = Object.assign(appSettings, snap.data());
+    document.getElementById("set-window").value = appSettings.avgUphWindowShifts;
+    document.getElementById("set-recent").value = appSettings.trendRecentDays;
+    document.getElementById("set-prior").value = appSettings.trendPriorDays;
+    renderBoard();
+  });
+
+  db.collection("stations").orderBy("order").onSnapshot(snap => {
+    stations = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderStationsAdmin();
+    renderBoard();
+  });
+
+  db.collection("associates").orderBy("name").onSnapshot(snap => {
+    associates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderAssociatesAdmin();
+    renderBoard();
+  });
+
+  // Keep last ~4 months of UPH history in memory; all averaging/trend math done client-side.
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 4);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  db.collection("uphHistory").where("shiftDate", ">=", cutoffStr).onSnapshot(snap => {
+    uphHistory = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderBoard();
+  });
+
+  document.getElementById("shift-date").value = currentShiftDate;
+  document.getElementById("goal-date").value = currentShiftDate;
+  watchShift(currentShiftDate);
+
+  populateFunctionDropdown();
+}
+
+function watchShift(shiftDate) {
+  currentShiftDate = shiftDate;
+  if (unsubSegments) unsubSegments();
+  unsubSegments = db.collection("assignments").doc(shiftDate).collection("segments")
+    .onSnapshot(snap => {
+      segments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderBoard();
+    });
+  db.collection("shiftGoals").where("shiftDate", "==", shiftDate).onSnapshot(snap => {
+    shiftGoalsToday = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderBoard();
+    renderGoalsAdmin();
+  });
+}
+
+document.getElementById("shift-date").addEventListener("change", e => watchShift(e.target.value));
+
+/* ======================================================================
+   UPH CALC HELPERS
+   ====================================================================== */
+function historyFor(associateId, tranType) {
+  if (!tranType) return [];
+  return uphHistory
+    .filter(h => h.associateId === associateId && h.tranType === tranType)
+    .sort((a, b) => (a.shiftDate < b.shiftDate ? 1 : -1)); // desc
+}
+
+function avgUPH(associateId, functionKey) {
+  const fn = FUNCTIONS[functionKey];
+  const hist = historyFor(associateId, fn.tranType).slice(0, appSettings.avgUphWindowShifts);
+  if (hist.length === 0) return null; // no data yet - caller falls back to station target
+  const sum = hist.reduce((s, h) => s + h.uph, 0);
+  return sum / hist.length;
+}
+
+function trendFor(associateId, functionKey) {
+  const fn = FUNCTIONS[functionKey];
+  const hist = historyFor(associateId, fn.tranType);
+  if (hist.length === 0) return { dir: "flat", delta: 0 };
+  const now = new Date(currentShiftDate);
+  const recentCut = new Date(now); recentCut.setDate(recentCut.getDate() - appSettings.trendRecentDays);
+  const priorCut = new Date(recentCut); priorCut.setDate(priorCut.getDate() - appSettings.trendPriorDays);
+  const recent = hist.filter(h => new Date(h.shiftDate) > recentCut);
+  const prior = hist.filter(h => new Date(h.shiftDate) <= recentCut && new Date(h.shiftDate) > priorCut);
+  if (recent.length === 0 || prior.length === 0) return { dir: "flat", delta: 0 };
+  const rAvg = recent.reduce((s, h) => s + h.uph, 0) / recent.length;
+  const pAvg = prior.reduce((s, h) => s + h.uph, 0) / prior.length;
+  const delta = rAvg - pAvg;
+  return { dir: delta > 1 ? "up" : delta < -1 ? "down" : "flat", delta };
+}
+
+function goalFor(functionKey) {
+  return shiftGoalsToday.find(g => g.functionKey === functionKey) || null;
+}
+
+/* ======================================================================
+   BOARD RENDER
+   ====================================================================== */
+function renderBoard() {
+  if (!stations.length) { document.getElementById("stations-wrap").innerHTML = "<p class='note'>No stations yet — seed them from Admin &rarr; Stations.</p>"; }
+
+  const activeByStation = {}; // stationId -> [segment]
+  segments.filter(s => !s.endTime).forEach(s => {
+    (activeByStation[s.stationId] = activeByStation[s.stationId] || []).push(s);
+  });
+
+  // ---- Labor pool: associates with no active segment today ----
+  const assignedIds = new Set(segments.filter(s => !s.endTime).map(s => s.associateId));
+  const pool = associates.filter(a => a.active !== false && !assignedIds.has(a.id));
+  const poolEl = document.getElementById("pool-list");
+  poolEl.innerHTML = "";
+  pool.forEach(a => poolEl.appendChild(associateCard(a, null)));
+  wireDropZone(poolEl, null);
+
+  // ---- Stations ----
+  const wrap = document.getElementById("stations-wrap");
+  wrap.innerHTML = "";
+  let totalProjected = 0, totalGoal = 0;
+
+  stations.forEach(st => {
+    const fn = FUNCTIONS[st.functionKey] || {};
+    const card = document.createElement("div");
+    card.className = "station-card" + (st.type === "bucket" ? " bucket" : "");
+    const goal = goalFor(st.functionKey);
+    card.innerHTML = `<h3>${st.name}</h3><div class="target">Target ${st.setUPH} UPH${goal ? " · Goal " + goal.targetUnits + " units" : ""}</div>`;
+
+    const occupants = activeByStation[st.id] || [];
+    let projectedUnits = 0;
+
+    if (st.type === "slot") {
+      const dropZone = document.createElement("div");
+      dropZone.className = "station-slot";
+      if (occupants.length === 0) {
+        dropZone.innerHTML = `<div class="empty-hint">Drop an associate here</div>`;
+      } else {
+        const seg = occupants[0];
+        const a = associates.find(x => x.id === seg.associateId);
+        const perf = a ? avgUPH(a.id, st.functionKey) : null;
+        const uph = perf != null ? perf : st.setUPH;
+        const hrs = seg.hoursInFunction != null ? seg.hoursInFunction : (goal ? goal.plannedHours : 8);
+        projectedUnits = uph * hrs;
+        dropZone.appendChild(occupantRow(seg, a, uph, hrs));
+      }
+      card.appendChild(dropZone);
+      wireDropZone(dropZone, st);
+
+      if (occupants.length) {
+        const uphNow = occupants[0] ? (associates.find(x=>x.id===occupants[0].associateId) ? (avgUPH(occupants[0].associateId, st.functionKey) ?? st.setUPH) : st.setUPH) : st.setUPH;
+        const f = uphNow >= st.setUPH ? "ok" : uphNow >= st.setUPH * 0.85 ? "warn" : "bad";
+        card.innerHTML += `<div class="proj-line">Projected: ${uphNow.toFixed(1)} UPH</div><span class="flag ${f}">${f === "ok" ? "On target" : f === "warn" ? "Slightly under" : "Understaffed"}</span>`;
+      }
+    } else {
+      const dropZone = document.createElement("div");
+      dropZone.className = "bucket-drop";
+      if (occupants.length === 0) {
+        dropZone.innerHTML = `<div class="empty-hint">Drop associates here</div>`;
+      }
+      occupants.forEach(seg => {
+        const a = associates.find(x => x.id === seg.associateId);
+        const perf = a ? avgUPH(a.id, st.functionKey) : null;
+        const uph = perf != null ? perf : st.setUPH;
+        const hrs = seg.hoursInFunction != null ? seg.hoursInFunction : (goal ? goal.plannedHours : 8);
+        projectedUnits += uph * hrs;
+        dropZone.appendChild(occupantRow(seg, a, uph, hrs));
+      });
+      card.appendChild(dropZone);
+      wireDropZone(dropZone, st);
+
+      if (occupants.length) {
+        card.innerHTML += `<div class="proj-line">Projected: ${Math.round(projectedUnits)} units</div>`;
+        if (goal) {
+          const ratio = projectedUnits / goal.targetUnits;
+          const f = ratio >= 1 ? "ok" : ratio >= 0.85 ? "warn" : "bad";
+          card.innerHTML += `<span class="flag ${f}">${f === "ok" ? "Meets goal" : f === "warn" ? "Close to goal" : "Understaffed"}</span>`;
+        }
+      }
+    }
+
+    totalProjected += projectedUnits;
+    if (goal) totalGoal += goal.targetUnits;
+    wrap.appendChild(card);
+  });
+
+  document.getElementById("stat-projected").textContent = Math.round(totalProjected);
+  document.getElementById("stat-goal").textContent = Math.round(totalGoal);
+  const variance = totalProjected - totalGoal;
+  const varEl = document.getElementById("stat-variance");
+  varEl.textContent = (variance >= 0 ? "+" : "") + Math.round(variance);
+  varEl.style.color = variance >= 0 ? "var(--ok)" : "var(--bad)";
+}
+
+function associateCard(a, currentFunctionKey) {
+  const el = document.createElement("div");
+  el.className = "assoc-card";
+  el.draggable = true;
+  el.dataset.associateId = a.id;
+  let metaBits = [];
+  if (currentFunctionKey) {
+    const t = trendFor(a.id, currentFunctionKey);
+    const cls = t.dir === "up" ? "trend-up" : t.dir === "down" ? "trend-down" : "trend-flat";
+    const arrow = t.dir === "up" ? "▲" : t.dir === "down" ? "▼" : "–";
+    metaBits.push(`<span class="${cls}">${arrow} ${Math.abs(t.delta).toFixed(1)} UPH</span>`);
+  }
+  el.innerHTML = `<div class="name">${a.name || a.employeeId}</div><div class="meta">${a.associateCode || ""}${metaBits.length ? "<span>"+metaBits.join(" ")+"</span>" : ""}</div>`;
+  el.addEventListener("dragstart", e => {
+    e.dataTransfer.setData("text/plain", a.id);
+  });
+  return el;
+}
+
+function occupantRow(seg, a, uph, hrs) {
+  const row = document.createElement("div");
+  row.className = "occupant";
+  row.draggable = true;
+  row.dataset.associateId = seg.associateId;
+  row.innerHTML = `
+    <span>${a ? (a.name || a.employeeId) : "(unknown)"} <span style="color:var(--muted)">(${uph.toFixed(1)} UPH)</span></span>
+    <span>
+      <input class="hrs" type="number" step="0.25" value="${hrs}" title="Hours in function">
+      <button class="remove" title="Return to pool">✕</button>
+    </span>`;
+  row.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", seg.associateId));
+  row.querySelector(".hrs").addEventListener("change", e => {
+    db.collection("assignments").doc(currentShiftDate).collection("segments").doc(seg.id)
+      .update({ hoursInFunction: parseFloat(e.target.value) || 0 });
+  });
+  row.querySelector(".remove").addEventListener("click", () => closeSegment(seg));
+  return row;
+}
+
+/* ======================================================================
+   DRAG & DROP -> SEGMENT LOGIC
+   Dropping an associate onto a station closes their current active
+   segment (if any) and opens a new one at the new station. Dropping
+   back onto the pool just closes their active segment.
+   ====================================================================== */
+function wireDropZone(el, station) {
+  el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("dragover"); });
+  el.addEventListener("dragleave", () => el.classList.remove("dragover"));
+  el.addEventListener("drop", e => {
+    e.preventDefault();
+    el.classList.remove("dragover");
+    const associateId = e.dataTransfer.getData("text/plain");
+    if (!associateId) return;
+    handleDrop(associateId, station);
+  });
+}
+
+async function handleDrop(associateId, station) {
+  const activeSeg = segments.find(s => s.associateId === associateId && !s.endTime);
+
+  if (station && station.type === "slot") {
+    const occupied = segments.find(s => s.stationId === station.id && !s.endTime && s.associateId !== associateId);
+    if (occupied) { alert(`${station.name} is already occupied. Remove that associate first.`); return; }
+  }
+  if (activeSeg && station && activeSeg.stationId === station.id) return; // no-op, same spot
+
+  const segRef = db.collection("assignments").doc(currentShiftDate).collection("segments");
+  const batch = db.batch();
+  const now = firebase.firestore.Timestamp.now();
+
+  if (activeSeg) {
+    const startMs = activeSeg.startTime ? activeSeg.startTime.toMillis() : now.toMillis();
+    const hours = Math.max(0, (now.toMillis() - startMs) / 3600000);
+    batch.update(segRef.doc(activeSeg.id), { endTime: now, hoursInFunction: Math.round(hours * 100) / 100 });
+  }
+  if (station) {
+    const goal = goalFor(station.functionKey);
+    batch.set(segRef.doc(), {
+      associateId, stationId: station.id, functionKey: station.functionKey,
+      startTime: now, endTime: null,
+      hoursInFunction: goal ? goal.plannedHours : null
+    });
+  }
+  await batch.commit();
+}
+
+async function closeSegment(seg) {
+  const now = firebase.firestore.Timestamp.now();
+  const startMs = seg.startTime ? seg.startTime.toMillis() : now.toMillis();
+  const hours = Math.max(0, (now.toMillis() - startMs) / 3600000);
+  await db.collection("assignments").doc(currentShiftDate).collection("segments").doc(seg.id)
+    .update({ endTime: now, hoursInFunction: Math.round(hours * 100) / 100 });
+}
+
+/* ======================================================================
+   ADMIN: STATIONS
+   ====================================================================== */
+document.getElementById("seed-btn").addEventListener("click", async () => {
+  const existing = await db.collection("stations").limit(1).get();
+  if (!existing.empty) {
+    if (!confirm("Stations already exist. Seed anyway (adds any missing default stations)?")) return;
+  }
+  const batch = db.batch();
+  let order = 0;
+  Object.entries(FUNCTIONS).forEach(([key, fn]) => {
+    if (fn.type === "slot") {
+      for (let i = 1; i <= fn.count; i++) {
+        const id = `${key}_${i}`;
+        const name = fn.count === 1 ? fn.name : `${fn.name} ${i}`;
+        batch.set(db.collection("stations").doc(id), {
+          name, functionKey: key, tranType: fn.tranType, setUPH: fn.defaultUPH, type: "slot", order: order++
+        }, { merge: true });
+      }
+    } else {
+      batch.set(db.collection("stations").doc(key), {
+        name: fn.name, functionKey: key, tranType: fn.tranType, setUPH: fn.defaultUPH, type: "bucket", order: order++
+      }, { merge: true });
+    }
+  });
+  await batch.commit();
+  alert("Stations seeded.");
+});
+
+function renderStationsAdmin() {
+  const tbody = document.querySelector("#stations-table tbody");
+  tbody.innerHTML = "";
+  stations.forEach(st => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><input value="${st.name}" data-field="name"></td>
+      <td>${(FUNCTIONS[st.functionKey] || {}).name || st.functionKey}</td>
+      <td>${st.type}</td>
+      <td>${st.tranType || "(none set)"}</td>
+      <td><input type="number" value="${st.setUPH}" data-field="setUPH" style="width:70px"></td>
+      <td class="row-actions"><button data-action="delete">Delete</button></td>`;
+    tr.querySelectorAll("input").forEach(inp => {
+      inp.addEventListener("change", () => {
+        const field = inp.dataset.field;
+        const val = field === "setUPH" ? parseFloat(inp.value) || 0 : inp.value;
+        db.collection("stations").doc(st.id).update({ [field]: val });
+      });
+    });
+    tr.querySelector('[data-action="delete"]').addEventListener("click", () => {
+      if (confirm(`Delete station "${st.name}"?`)) db.collection("stations").doc(st.id).delete();
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+/* ======================================================================
+   ADMIN: ASSOCIATES
+   ====================================================================== */
+document.getElementById("add-assoc-btn").addEventListener("click", async () => {
+  const employeeId = document.getElementById("new-assoc-eid").value.trim();
+  const name = document.getElementById("new-assoc-name").value.trim();
+  const associateCode = document.getElementById("new-assoc-code").value.trim();
+  if (!employeeId || !name) { alert("Employee Id and name are required."); return; }
+  await db.collection("associates").add({ employeeId, name, associateCode, active: true });
+  document.getElementById("new-assoc-eid").value = "";
+  document.getElementById("new-assoc-name").value = "";
+  document.getElementById("new-assoc-code").value = "";
+});
+
+function renderAssociatesAdmin() {
+  const tbody = document.querySelector("#assoc-table tbody");
+  tbody.innerHTML = "";
+  associates.forEach(a => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${a.employeeId}</td>
+      <td><input value="${a.name}" data-field="name"></td>
+      <td><input value="${a.associateCode || ""}" data-field="associateCode"></td>
+      <td><input type="checkbox" data-field="active" ${a.active !== false ? "checked" : ""}></td>
+      <td class="row-actions"><button data-action="delete">Delete</button></td>`;
+    tr.querySelectorAll("input").forEach(inp => {
+      inp.addEventListener("change", () => {
+        const field = inp.dataset.field;
+        const val = field === "active" ? inp.checked : inp.value;
+        db.collection("associates").doc(a.id).update({ [field]: val });
+      });
+    });
+    tr.querySelector('[data-action="delete"]').addEventListener("click", () => {
+      if (confirm(`Delete associate "${a.name}"?`)) db.collection("associates").doc(a.id).delete();
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+/* ======================================================================
+   ADMIN: SHIFT GOALS
+   ====================================================================== */
+function populateFunctionDropdown() {
+  const sel = document.getElementById("goal-function");
+  sel.innerHTML = "";
+  Object.entries(FUNCTIONS).forEach(([key, fn]) => {
+    const opt = document.createElement("option");
+    opt.value = key; opt.textContent = fn.name;
+    sel.appendChild(opt);
+  });
+}
+
+document.getElementById("goal-date").addEventListener("change", e => watchShift(e.target.value));
+
+document.getElementById("save-goal-btn").addEventListener("click", async () => {
+  const shiftDate = document.getElementById("goal-date").value;
+  const functionKey = document.getElementById("goal-function").value;
+  const targetUnits = parseFloat(document.getElementById("goal-units").value) || 0;
+  const plannedHours = parseFloat(document.getElementById("goal-hours").value) || 0;
+  await db.collection("shiftGoals").doc(`${shiftDate}_${functionKey}`).set({ shiftDate, functionKey, targetUnits, plannedHours });
+});
+
+function renderGoalsAdmin() {
+  const tbody = document.querySelector("#goals-table tbody");
+  tbody.innerHTML = "";
+  shiftGoalsToday.forEach(g => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${(FUNCTIONS[g.functionKey]||{}).name || g.functionKey}</td><td>${g.targetUnits}</td><td>${g.plannedHours}</td>
+      <td class="row-actions"><button data-action="delete">Delete</button></td>`;
+    tr.querySelector('[data-action="delete"]').addEventListener("click", () => db.collection("shiftGoals").doc(g.id).delete());
+    tbody.appendChild(tr);
+  });
+}
+
+/* ======================================================================
+   ADMIN: SETTINGS
+   ====================================================================== */
+document.getElementById("save-settings-btn").addEventListener("click", async () => {
+  const avgUphWindowShifts = parseInt(document.getElementById("set-window").value) || 15;
+  const trendRecentDays = parseInt(document.getElementById("set-recent").value) || 14;
+  const trendPriorDays = parseInt(document.getElementById("set-prior").value) || 14;
+  await db.collection("settings").doc("appSettings").set({ avgUphWindowShifts, trendRecentDays, trendPriorDays });
+});
+
+/* ======================================================================
+   ADMIN: IMPORT / CLEANING PIPELINE
+   Ports the Overnight_Daily Power Query: skip junk row -> promote headers
+   -> clean Tran Qty -> derive ShiftDate/OvernightFlag -> filter -> dedupe
+   -> aggregate to per-associate/per-TranType/per-day UPH.
+   ====================================================================== */
+let pendingImportRows = null;
+
+document.getElementById("import-btn").addEventListener("click", async () => {
+  const file = document.getElementById("import-file").files[0];
+  const log = document.getElementById("import-log");
+  log.textContent = "";
+  if (!file) { log.textContent = "Choose a file first."; return; }
+  try {
+    const rows = await parseTransactionFile(file);
+    const cleaned = cleanRows(rows, log);
+    const grouped = aggregateToUPH(cleaned, log);
+    pendingImportRows = grouped;
+    document.getElementById("commit-btn").classList.remove("hidden");
+    log.textContent += `\nReady to write ${grouped.length} UPH record(s). Click "Write to History" to commit.`;
+  } catch (err) {
+    log.textContent += `\nERROR: ${err.message}`;
+  }
+});
+
+document.getElementById("commit-btn").addEventListener("click", async () => {
+  const log = document.getElementById("import-log");
+  if (!pendingImportRows || !pendingImportRows.length) return;
+  const batch = db.batch();
+  pendingImportRows.forEach(r => {
+    const expire = new Date(r.shiftDate);
+    expire.setMonth(expire.getMonth() + 4);
+    const id = `${r.associateId}_${r.tranType}_${r.shiftDate}`;
+    batch.set(db.collection("uphHistory").doc(id), {
+      associateId: r.associateId, tranType: r.tranType, shiftDate: r.shiftDate,
+      units: r.units, minutes: r.minutes, uph: r.uph,
+      expireAt: firebase.firestore.Timestamp.fromDate(expire)
+    });
+  });
+  await batch.commit();
+  log.textContent += `\nWrote ${pendingImportRows.length} record(s) to uphHistory.`;
+  pendingImportRows = null;
+  document.getElementById("commit-btn").classList.add("hidden");
+});
+
+function parseTransactionFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: "array", cellDates: true });
+        const firstSheet = wb.SheetNames[0];
+        const raw = XLSX.utils.sheet_to_json(wb.Sheets[firstSheet], { header: 1, raw: false });
+        resolve(raw);
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function cleanRows(raw, log) {
+  // Step 1: skip junk row 1, promote row 2 as headers (mirrors "Removed Top Rows" + "Promoted Headers")
+  const headerRow = raw[1] || [];
+  let headers = headerRow.map(h => (h || "").toString().trim());
+  if (!headers.includes("Employee Id") && headers.includes("Reason Employee Id")) {
+    headers = headers.map(h => (h === "Reason Employee Id" ? "Employee Id" : h));
+  }
+  const dataRows = raw.slice(2);
+  const objs = dataRows.map(r => {
+    const o = {};
+    headers.forEach((h, i) => { if (h) o[h] = r[i]; });
+    return o;
+  }).filter(o => o["Employee Id"]);
+
+  log.textContent += `Parsed ${objs.length} raw rows.\n`;
+
+  // Step 2: clean Tran Qty -> number
+  const cleanQty = v => {
+    if (v == null || v === "") return null;
+    let s = String(v).trim().replace(/,/g, "");
+    if (s.startsWith("(") && s.endsWith(")")) s = "-" + s.slice(1, -1);
+    const n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  };
+
+  // Step 3: derive Date Only / Time Only / ShiftDate / OvernightFlag
+  const withDerived = objs.map(o => {
+    const dt = o["Date Time"] instanceof Date ? o["Date Time"] : new Date(o["Date Time"]);
+    if (isNaN(dt)) return null;
+    const shiftDate = todayShiftDateStr(dt);
+    const hh = dt.getHours() + dt.getMinutes() / 60;
+    const overnight = hh >= 17 || hh <= 4.5;
+    return {
+      empId: String(o["Employee Id"]).trim(),
+      tranType: String(o["Tran Type"] || "").trim(),
+      dateTime: dt,
+      shiftDate,
+      overnight,
+      qty: cleanQty(o["Tran Qty"])
+    };
+  }).filter(r => r && r.qty != null && r.tranType);
+
+  // Step 4: keep overnight only
+  const overnightRows = withDerived.filter(r => r.overnight);
+  log.textContent += `${overnightRows.length} rows after overnight filter (5:00 PM - 4:30 AM).\n`;
+
+  // Step 5: dedupe on {Tran Type, Employee Id, Date Time, Qty}
+  const seen = new Set();
+  const deduped = overnightRows.filter(r => {
+    const key = `${r.tranType}|${r.empId}|${r.dateTime.getTime()}|${r.qty}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  log.textContent += `${deduped.length} rows after de-dup.\n`;
+  return deduped;
+}
+
+function aggregateToUPH(rows, log) {
+  // Group by Employee Id + Tran Type + ShiftDate; UPH = units / (first-scan-to-last-scan hours)
+  const groups = {};
+  rows.forEach(r => {
+    const key = `${r.empId}|${r.tranType}|${r.shiftDate}`;
+    if (!groups[key]) groups[key] = { empId: r.empId, tranType: r.tranType, shiftDate: r.shiftDate, units: 0, times: [] };
+    groups[key].units += r.qty;
+    groups[key].times.push(r.dateTime.getTime());
+  });
+
+  const associateByEmployeeId = {};
+  associates.forEach(a => { associateByEmployeeId[a.employeeId] = a.id; });
+
+  const out = [];
+  let skippedNoAssoc = 0, skippedShort = 0;
+  Object.values(groups).forEach(g => {
+    const associateId = associateByEmployeeId[g.empId];
+    if (!associateId) { skippedNoAssoc++; return; }
+    const minMs = Math.min(...g.times), maxMs = Math.max(...g.times);
+    const minutes = (maxMs - minMs) / 60000;
+    if (minutes < 10) { skippedShort++; return; } // too little spread to trust a rate
+    const uph = g.units / (minutes / 60);
+    out.push({ associateId, tranType: g.tranType, shiftDate: g.shiftDate, units: g.units, minutes: Math.round(minutes), uph: Math.round(uph * 100) / 100 });
+  });
+
+  log.textContent += `Aggregated to ${out.length} associate/day/function record(s).\n`;
+  if (skippedNoAssoc) log.textContent += `Skipped ${skippedNoAssoc} group(s): Employee Id not found in Associates admin tab.\n`;
+  if (skippedShort) log.textContent += `Skipped ${skippedShort} group(s): under 10 minutes of spread (unreliable rate).\n`;
+  return out;
+}
+</script>
+</body>
+</html>
