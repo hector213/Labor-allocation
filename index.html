@@ -79,14 +79,11 @@
   .trend-up{color:var(--ok);} .trend-down{color:var(--bad);} .trend-flat{color:var(--muted);}
   #pool-list.dragover, .station-slot.dragover, .station-bucket .bucket-drop.dragover{outline:2px dashed var(--accent);outline-offset:2px;}
 
-  /* Each zone sizes itself to however many stations it actually holds (via flex-wrap on the
-     outer wrap, content-based width on each zone-block) instead of every zone being forced
-     into one same-size grid column — that was squeezing a 2-station zone like Pack into a
-     single 230px column and stacking its stations vertically instead of side by side. Zones
-     flow left to right and wrap to a new row once a row is full, so a zone with more stations
-     (Replen, Consolidation) naturally drops to the next row under the single-station zones
-     (OP/MOD/Walkie Pick) rather than distorting everyone else's layout. */
-  #stations-wrap{display:flex;flex-wrap:wrap;align-items:flex-start;gap:18px 24px;}
+  /* Fixed 4-column floor grid. Each zone is pinned to a specific column (see ZONES.column
+     in the script) instead of just flowing left-to-right, so Replen/Consolidation land
+     directly under OP Pick / MOD Pick — not wherever they happen to fall in source order —
+     and empty columns (e.g. under Walkie Pick) stay empty instead of getting backfilled. */
+  #stations-wrap{display:grid;grid-template-columns:repeat(4, 230px);grid-auto-flow:row dense;align-items:start;gap:18px 24px;}
   .zone-block{margin-bottom:0;}
   .zone-header{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;border-left:4px solid var(--accent);padding-left:8px;margin-bottom:8px;}
   .station-card{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--slot-bg);}
@@ -383,14 +380,16 @@ const FUNCTIONS = {
 /* Default calc settings (overridden by /settings/appSettings once saved) */
 let appSettings = { avgUphWindowShifts: 15, trendRecentDays: 14, trendPriorDays: 14, shiftStartHour: 17, shiftLengthHours: 10.5, shiftGraceHours: 1 };
 
-/* Zones — purely a visual grouping of stations on the Board (matches the floor-layout mockup). */
+/* Zones — purely a visual grouping of stations on the Board (matches the floor-layout mockup).
+   "column" pins a zone to a specific column in the 4-column floor grid so Replen/Consolidation
+   land directly under OP Pick / MOD Pick rather than wherever they'd fall in source order. */
 const ZONES = [
-  { label: "Pack Zone",              functions: ["SMALL_PACK", "LARGE_PACK"] },
-  { label: "OP Pick Zone",           functions: ["OP_PICK"] },
-  { label: "MOD Pick Zone",          functions: ["MOD_PICK"] },
-  { label: "Walkie Pick Zone",       functions: ["WALKIE_PICK"] },
-  { label: "Replen Zone",            functions: ["REPLEN_PICK", "REPLEN_PUT"] },
-  { label: "Consolidation",          functions: ["LARGE_CONSOLIDATION", "SMALL_CONSOLIDATION"] }
+  { label: "Pack Zone",              functions: ["SMALL_PACK", "LARGE_PACK"],                     column: 1 },
+  { label: "OP Pick Zone",           functions: ["OP_PICK"],                                       column: 2 },
+  { label: "MOD Pick Zone",          functions: ["MOD_PICK"],                                      column: 3 },
+  { label: "Walkie Pick Zone",       functions: ["WALKIE_PICK"],                                   column: 4 },
+  { label: "Replen Zone",            functions: ["REPLEN_PICK", "REPLEN_PUT"],                     column: 2 },
+  { label: "Consolidation",          functions: ["LARGE_CONSOLIDATION", "SMALL_CONSOLIDATION"],    column: 3 }
 ];
 
 /* Tran Type counted toward the "Pack-out so far" stat — Pack completions only (315), since that's
@@ -695,6 +694,7 @@ function renderBoard() {
     if (!zoneStations.length) return;
     const zoneBlock = document.createElement("div");
     zoneBlock.className = "zone-block";
+    if (zone.column) zoneBlock.style.gridColumn = String(zone.column);
     zoneBlock.innerHTML = `<div class="zone-header">${zone.label}</div>`;
     const zoneGrid = document.createElement("div");
     zoneGrid.style.display = "grid";
