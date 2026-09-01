@@ -1181,16 +1181,24 @@ function cleanRows(raw, log) {
   // night, no per-night detection).
   let droppedBadDate = 0, droppedBadQty = 0, droppedNoTranType = 0;
   const withDerived = objs.map(o => {
-    const rawDt = o["Date Time"] instanceof Date ? o["Date Time"] : new Date(o["Date Time"]);
+    const isRealDateCell = o["Date Time"] instanceof Date;
+    const rawDt = isRealDateCell ? o["Date Time"] : new Date(o["Date Time"]);
     if (isNaN(rawDt)) { droppedBadDate++; return null; }
     // SheetJS (cellDates: true) builds Date objects from Excel serial dates using UTC-based
     // fields — i.e. the wall-clock time Excel shows lives in the UTC getters, not the local
-    // ones. Reconstruct a genuine local Date from those UTC fields so every getHours()/
-    // getDate()/etc. downstream (here and in todayShiftDateStr) reads the correct wall-clock
-    // value regardless of the browser's timezone, instead of silently shifting by the local
-    // UTC offset.
-    const dt = new Date(rawDt.getUTCFullYear(), rawDt.getUTCMonth(), rawDt.getUTCDate(),
-      rawDt.getUTCHours(), rawDt.getUTCMinutes(), rawDt.getUTCSeconds());
+    // ones — so for THAT case we reconstruct a genuine local Date from those UTC fields.
+    // BUT: some rows in this export come through with "Date Time" as plain text (not a real
+    // Excel date cell), which falls back to `new Date(string)` — and that constructor already
+    // parses the string using LOCAL wall-clock semantics, correctly. Applying the UTC-field
+    // reconstruction to THAT kind of Date double-shifts it by the local UTC offset (7 hours in
+    // September for Las Vegas), which is what was silently pushing a real 8 PM scan into a
+    // 3 AM slot the next day and getting it kicked out of the shift window entirely. So: only
+    // reconstruct when the cell was genuinely a Date object from SheetJS; use the string-parsed
+    // Date as-is otherwise.
+    const dt = isRealDateCell
+      ? new Date(rawDt.getUTCFullYear(), rawDt.getUTCMonth(), rawDt.getUTCDate(),
+          rawDt.getUTCHours(), rawDt.getUTCMinutes(), rawDt.getUTCSeconds())
+      : rawDt;
     const shiftDate = todayShiftDateStr(dt);
     const hh = dt.getHours() + dt.getMinutes() / 60;
     const qty = cleanQty(o["Tran Qty"]);
