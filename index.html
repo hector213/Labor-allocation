@@ -1282,6 +1282,21 @@ function aggregateToUPH(rows, log) {
     log.textContent += `  ${key}: ${byDateType[key]} units\n`;
   });
 
+  // Per-Employee-Id breakdown for Pack (315) specifically, EVERY Employee Id seen in the cleaned
+  // data (whether matched to an Associates record or not) — use this to diff directly against a
+  // known-correct per-person list (e.g. from the Shift Cost Sheet) and see exactly which Ids are
+  // over/under/missing, instead of only a lump total.
+  log.textContent += `\nPack (315) units by Employee Id, every date in this import (for reconciling against a known-correct list):\n`;
+  const packByEmp = {};
+  Object.values(groups).forEach(g => {
+    if (g.tranType !== PACKOUT_TRAN_TYPE) return;
+    const label = `${g.empId} (${g.shiftDate})`;
+    packByEmp[label] = (packByEmp[label] || 0) + g.units;
+  });
+  Object.keys(packByEmp).sort().forEach(key => {
+    log.textContent += `  ${key}: ${packByEmp[key]} units\n`;
+  });
+
   return out;
 }
 </script>
