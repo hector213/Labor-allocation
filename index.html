@@ -708,10 +708,23 @@ function renderBoard() {
         card.appendChild(dropZone);
         wireDropZone(dropZone, st);
 
+        // IMPORTANT: append real nodes here, never `card.innerHTML +=` — that serializes card's
+        // *entire* existing content (including the dropZone/occupantRow just appended above,
+        // with its click/drag listeners) to a string and reparses it into brand-new DOM nodes.
+        // The markup comes back looking identical, but every JS-attached listener is gone,
+        // since listeners never serialize into HTML — which is exactly why Remove silently
+        // stopped working: the button still LOOKED right, it just had zero listeners left.
         if (occupants.length) {
           const uphNow = occupants[0] ? (associates.find(x=>x.id===occupants[0].associateId) ? (avgUPH(occupants[0].associateId, st.functionKey) ?? st.setUPH) : st.setUPH) : st.setUPH;
           const f = uphNow >= st.setUPH ? "ok" : uphNow >= st.setUPH * 0.85 ? "warn" : "bad";
-          card.innerHTML += `<div class="proj-line">Projected total: ${Math.round(projectedUnits)} units (${uphNow.toFixed(1)} UPH avg)</div><span class="flag ${f}">${f === "ok" ? "ON TRACK" : f === "warn" ? "NEAR TARGET" : "DEFICIT"}</span>`;
+          const projLine = document.createElement("div");
+          projLine.className = "proj-line";
+          projLine.textContent = `Projected total: ${Math.round(projectedUnits)} units (${uphNow.toFixed(1)} UPH avg)`;
+          const flag = document.createElement("span");
+          flag.className = `flag ${f}`;
+          flag.textContent = f === "ok" ? "ON TRACK" : f === "warn" ? "NEAR TARGET" : "DEFICIT";
+          card.appendChild(projLine);
+          card.appendChild(flag);
         }
       } else {
         const dropZone = document.createElement("div");
@@ -730,12 +743,20 @@ function renderBoard() {
         card.appendChild(dropZone);
         wireDropZone(dropZone, st);
 
+        // Same reasoning as the slot branch above: append real nodes, never `card.innerHTML +=`
+        // after the dropZone/occupantRow nodes are already attached, or their listeners vanish.
         if (occupants.length) {
-          card.innerHTML += `<div class="proj-line">Projected total: ${Math.round(projectedUnits)} units</div>`;
+          const projLine = document.createElement("div");
+          projLine.className = "proj-line";
+          projLine.textContent = `Projected total: ${Math.round(projectedUnits)} units`;
+          card.appendChild(projLine);
           if (goal) {
             const ratio = projectedUnits / goal.targetUnits;
             const f = ratio >= 1 ? "ok" : ratio >= 0.85 ? "warn" : "bad";
-            card.innerHTML += `<span class="flag ${f}">${f === "ok" ? "ON TRACK" : f === "warn" ? "NEAR TARGET" : "DEFICIT"}</span>`;
+            const flag = document.createElement("span");
+            flag.className = `flag ${f}`;
+            flag.textContent = f === "ok" ? "ON TRACK" : f === "warn" ? "NEAR TARGET" : "DEFICIT";
+            card.appendChild(flag);
           }
         }
       }
