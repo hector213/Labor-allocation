@@ -272,6 +272,18 @@
         <button class="btn" id="import-btn">Parse &amp; Preview</button>
         <button class="btn secondary hidden" id="commit-btn">Write to History</button>
         <div id="import-log"></div>
+
+        <h2 style="margin-top:24px">Clear records for a shift date</h2>
+        <div class="note">
+          One-time cleanup tool. Deletes every uphHistory record for the date you pick &mdash; use this to
+          wipe out bad data from a test/broken import before re-importing the corrected file, so old and
+          new records for that night don't both sit there and look like a "split."
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Shift date to clear</label><input type="date" id="clear-shiftdate"></div>
+        </div>
+        <button class="btn secondary" id="clear-shiftdate-btn">Delete all records for this date</button>
+        <div id="clear-shiftdate-log"></div>
       </div>
 
       <!-- Settings tab -->
@@ -1093,6 +1105,20 @@ document.getElementById("commit-btn").addEventListener("click", async () => {
   log.textContent += `\nWrote ${pendingImportRows.length} record(s) to uphHistory.`;
   pendingImportRows = null;
   document.getElementById("commit-btn").classList.add("hidden");
+});
+
+document.getElementById("clear-shiftdate-btn").addEventListener("click", async () => {
+  const log = document.getElementById("clear-shiftdate-log");
+  const shiftDate = document.getElementById("clear-shiftdate").value;
+  if (!shiftDate) { log.textContent = "Pick a date first."; return; }
+  if (!confirm(`Delete ALL uphHistory records for ${shiftDate}? This can't be undone.`)) return;
+  log.textContent = "Deleting...";
+  const snap = await db.collection("uphHistory").where("shiftDate", "==", shiftDate).get();
+  if (snap.empty) { log.textContent = `No records found for ${shiftDate}.`; return; }
+  const batch = db.batch();
+  snap.forEach(doc => batch.delete(doc.ref));
+  await batch.commit();
+  log.textContent = `Deleted ${snap.size} record(s) for ${shiftDate}.`;
 });
 
 function parseTransactionFile(file) {
