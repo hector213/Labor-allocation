@@ -22,6 +22,7 @@
     --accent:#2f6fed; --accent-dark:#1f4fb8; --ok:#1f8a4c; --ok-bg:#e6f6ec;
     --warn:#b8860b; --warn-bg:#fdf3d8; --bad:#c62c2c; --bad-bg:#fce8e8;
     --slot-bg:#eef2ff; --bucket-bg:#f7f5ff;
+    --hero-bg:#111a2e; --hero-bg2:#1b2947; --hero-text:#eef2ff; --hero-muted:#93a1c4;
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
@@ -45,24 +46,42 @@
   .hidden{display:none !important;}
 
   /* ---------- Board view ---------- */
-  #shift-bar{display:flex;gap:16px;align-items:center;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 16px;margin-bottom:14px;flex-wrap:wrap;}
-  #shift-bar label{font-size:12px;color:var(--muted);}
-  #shift-bar input[type=date]{padding:5px;border:1px solid var(--border);border-radius:6px;}
-  .shift-stat{font-size:13px;}
-  .shift-stat b{font-size:15px;}
+  #shift-bar{
+    display:flex;gap:24px;align-items:center;flex-wrap:wrap;
+    background:linear-gradient(135deg,var(--hero-bg),var(--hero-bg2));
+    color:var(--hero-text);border-radius:12px;padding:16px 20px;margin-bottom:14px;
+  }
+  #shift-bar .title-row{width:100%;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:4px;}
+  #shift-bar h2.hero-title{margin:0;font-size:17px;font-weight:700;}
+  #shift-bar .field label{color:var(--hero-muted);}
+  #shift-bar input[type=date]{padding:5px;border:1px solid #33406a;border-radius:6px;background:#0e1730;color:var(--hero-text);}
+  .shift-stat{font-size:12px;color:var(--hero-muted);min-width:120px;}
+  .shift-stat b{display:block;font-size:18px;color:var(--hero-text);font-weight:700;margin-top:2px;}
+  .shift-stat b.pos{color:#7be3a4;} .shift-stat b.neg{color:#ff9b9b;}
+  .shift-progress-bar{width:100%;height:6px;background:#0e1730;border-radius:4px;overflow:hidden;margin-top:8px;}
+  .shift-progress-bar > div{height:100%;background:#4c8bff;}
 
-  #board-grid{display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start;}
+  #board-grid{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start;}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;}
   .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 10px;}
 
-  #pool-list{display:flex;flex-direction:column;gap:8px;min-height:60px;}
-  .assoc-card{background:#fbfcfe;border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:grab;font-size:13px;}
+  .role-group{margin-bottom:14px;}
+  .role-group:last-child{margin-bottom:0;}
+  .role-group h3{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:0 0 6px;display:flex;justify-content:space-between;}
+  #pool-list{min-height:60px;}
+  .assoc-card{display:flex;align-items:center;gap:8px;background:#fbfcfe;border:1px solid var(--border);border-radius:8px;padding:6px 8px;margin-bottom:6px;cursor:grab;font-size:13px;}
   .assoc-card:active{cursor:grabbing;}
-  .assoc-card .name{font-weight:600;}
-  .assoc-card .meta{color:var(--muted);font-size:11px;margin-top:2px;display:flex;justify-content:space-between;}
+  .avatar{width:30px;height:30px;min-width:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;box-shadow:0 0 0 2px #fff, 0 0 0 3px var(--ring-color,transparent);}
+  .assoc-card .name{font-weight:600;line-height:1.15;}
+  .assoc-card .meta{color:var(--muted);font-size:11px;margin-top:1px;display:flex;gap:6px;}
+  .role-tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px;}
+  .role-tag{font-size:10px;background:#eef1f6;color:var(--muted);border-radius:8px;padding:1px 6px;}
   .trend-up{color:var(--ok);} .trend-down{color:var(--bad);} .trend-flat{color:var(--muted);}
   #pool-list.dragover, .station-slot.dragover, .station-bucket .bucket-drop.dragover{outline:2px dashed var(--accent);outline-offset:2px;}
 
+  .zone-block{margin-bottom:18px;}
+  .zone-block:last-child{margin-bottom:0;}
+  .zone-header{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;border-left:4px solid var(--accent);padding-left:8px;margin-bottom:8px;}
   #stations-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
   .station-card{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--slot-bg);}
   .station-card.bucket{background:var(--bucket-bg);}
@@ -71,7 +90,9 @@
   .station-slot{min-height:56px;border:1px dashed var(--border);border-radius:8px;padding:6px;background:#fff;}
   .station-slot .empty-hint{color:var(--muted);font-size:12px;text-align:center;padding:12px 0;}
   .bucket-drop{min-height:40px;border:1px dashed var(--border);border-radius:8px;padding:6px;background:#fff;display:flex;flex-direction:column;gap:6px;}
-  .occupant{display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;}
+  .occupant{display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;gap:6px;}
+  .occupant .who{display:flex;align-items:center;gap:6px;min-width:0;}
+  .occupant .who .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .occupant .hrs{width:52px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;}
   .occupant button.remove{border:none;background:none;color:var(--bad);cursor:pointer;font-size:14px;line-height:1;}
   .flag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;margin-top:6px;}
@@ -79,6 +100,9 @@
   .flag.warn{background:var(--warn-bg);color:var(--warn);}
   .flag.bad{background:var(--bad-bg);color:var(--bad);}
   .proj-line{font-size:12px;color:var(--muted);margin-top:4px;}
+
+  #ai-fab{position:fixed;right:22px;bottom:22px;width:54px;height:54px;border-radius:50%;background:var(--hero-bg2);color:#fff;border:none;box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:20px;cursor:pointer;}
+  #ai-fab:hover{background:var(--accent);}
 
   /* ---------- Admin view ---------- */
   #admin-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
@@ -131,26 +155,33 @@
     <!-- ---------- BOARD VIEW ---------- -->
     <section id="board-view">
       <div id="shift-bar">
-        <div class="field">
-          <label for="shift-date">Shift date</label>
-          <input type="date" id="shift-date">
+        <div class="title-row">
+          <h2 class="hero-title">Dynamic Throughput &amp; Labor Allocation</h2>
+          <div class="field">
+            <label for="shift-date">Shift date</label>
+            <input type="date" id="shift-date">
+          </div>
         </div>
-        <div class="shift-stat">Projected shift volume: <b id="stat-projected">0</b></div>
-        <div class="shift-stat">Combined goal: <b id="stat-goal">0</b></div>
-        <div class="shift-stat">Variance: <b id="stat-variance">0</b></div>
+        <div class="shift-stat">Shift progress <b id="stat-progress">0%</b></div>
+        <div class="shift-stat">Outbound so far (last import) <b id="stat-outbound">0</b></div>
+        <div class="shift-stat">Projected EOS total <b id="stat-projected">0</b></div>
+        <div class="shift-stat">Combined goal <b id="stat-goal">0</b></div>
+        <div class="shift-stat">Overall pace <b id="stat-pace">0%</b></div>
+        <div class="shift-progress-bar"><div id="shift-progress-fill" style="width:0%"></div></div>
       </div>
 
       <div id="board-grid">
         <div class="panel">
-          <h2>Labor Pool</h2>
+          <h2>Associate Talent Pool</h2>
           <div id="pool-list"></div>
         </div>
         <div class="panel">
-          <h2>Stations</h2>
+          <h2>Floor Grid</h2>
           <div id="stations-wrap"></div>
         </div>
       </div>
     </section>
+    <button id="ai-fab" title="AI Recommendation — planned for Phase 3">✦</button>
 
     <!-- ---------- ADMIN VIEW ---------- -->
     <section id="admin-view" class="hidden">
@@ -171,7 +202,7 @@
         </div>
         <button class="btn secondary" id="seed-btn">Seed default stations (run once)</button>
         <table class="admin-table" id="stations-table" style="margin-top:12px;">
-          <thead><tr><th>Name</th><th>Function</th><th>Type</th><th>Tran Type</th><th>Set UPH</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th>Function</th><th>Type</th><th>Tran Type</th><th>Set UPH</th><th>Capacity</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -183,7 +214,14 @@
           <div class="field"><label>Employee Id (login/handle)</label><input id="new-assoc-eid"></div>
           <div class="field"><label>Display name</label><input id="new-assoc-name"></div>
           <div class="field"><label>Associate Id (IE#)</label><input id="new-assoc-code"></div>
+          <div class="field"><label>Trained roles (ctrl/cmd-click for multiple)</label><select id="new-assoc-role" multiple size="4"></select></div>
           <button class="btn" id="add-assoc-btn">Add associate</button>
+        </div>
+        <div class="note">
+          Trained roles control how someone's card is grouped in the Talent Pool sidebar &mdash; a cross-trained
+          associate shows up under every role they're trained in (e.g. both "OP Pickers" and "Replen Put"). This
+          doesn't limit where you can actually drag them, it's just for finding who's available. Leave blank and
+          they'll show under "Unassigned."
         </div>
         <div class="note">
           <b>Bulk add:</b> paste one Employee Id per line (matching the "Employee Id" column in your transaction
@@ -196,7 +234,7 @@
         <button class="btn secondary" id="bulk-add-assoc-btn">Bulk add</button>
         <div id="bulk-assoc-log" class="note hidden"></div>
         <table class="admin-table" id="assoc-table">
-          <thead><tr><th>Employee Id</th><th>Name</th><th>Associate Id</th><th>Active</th><th></th></tr></thead>
+          <thead><tr><th>Employee Id</th><th>Name</th><th>Associate Id</th><th>Trained Roles (ctrl/cmd-click)</th><th>Active</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -243,8 +281,11 @@
           <div class="field"><label>Average UPH window (# of shifts)</label><input type="number" id="set-window"></div>
           <div class="field"><label>Trend: recent period (days)</label><input type="number" id="set-recent"></div>
           <div class="field"><label>Trend: prior period (days)</label><input type="number" id="set-prior"></div>
+          <div class="field"><label>Shift start (24h, e.g. 17 = 5 PM)</label><input type="number" id="set-shift-start"></div>
+          <div class="field"><label>Shift length (hours)</label><input type="number" step="0.25" id="set-shift-length"></div>
           <button class="btn" id="save-settings-btn">Save settings</button>
         </div>
+        <div class="note">Shift start/length only drive the "Shift progress" stat on the Board &mdash; they don't affect any projection math.</div>
       </div>
     </section>
   </main>
@@ -270,25 +311,41 @@ const db = firebase.firestore();
 /* ======================================================================
    FUNCTION / STATION DEFINITIONS
    tranType maps to the code(s) used in your transaction export.
-   type: 'slot' = fixed physical stations, one associate each (Pack).
-         'bucket' = single drop-zone, any number of associates (Pick/Replen/Consolidation).
+   type: 'slot' = fixed physical stations, one associate each (Pack — this is a real
+         physical constraint, not adjustable from Admin).
+         'bucket' = one drop-zone with a configurable capacity (Pick/Replen/Consolidation) —
+         defaultCapacity seeds the starting number of slots; edit the real number in
+         Admin > Stations per your actual floor headcount.
    ====================================================================== */
 const FUNCTIONS = {
   SMALL_PACK:          { name: "Small Pack",           tranType: "315", defaultUPH: 75,  type: "slot",   count: 8 },
   LARGE_PACK:          { name: "Large Pack",            tranType: "315", defaultUPH: 22,  type: "slot",   count: 6 },
   LARGE_PACK_CUBBIES:  { name: "Large Pack Cubbies",    tranType: "315", defaultUPH: 30,  type: "slot",   count: 1 },
-  OP_PICK:             { name: "OP Pick",                tranType: "301", defaultUPH: 35,  type: "bucket" },
-  MOD_PICK:            { name: "MOD Pick",               tranType: "301", defaultUPH: 85,  type: "bucket" },
-  WALKIE_PICK:         { name: "Walkie Pick",             tranType: "301", defaultUPH: 75,  type: "bucket" },
-  REPLEN_PICK:         { name: "Replenishment Pick",      tranType: "305", defaultUPH: 100, type: "bucket" },
-  REPLEN_PUT:          { name: "Replenishment Put",       tranType: "306", defaultUPH: 100, type: "bucket" },
-  CUBBY_OUTSORT:       { name: "Cubby Outsort",           tranType: "311", defaultUPH: 75,  type: "bucket" },
-  LARGE_CONSOLIDATION: { name: "Large Consolidation",     tranType: null,  defaultUPH: 50,  type: "bucket", placeholder: true },
-  SMALL_CONSOLIDATION: { name: "Small Consolidation",     tranType: null,  defaultUPH: 50,  type: "bucket", placeholder: true }
+  OP_PICK:             { name: "OP Pick",                tranType: "301", defaultUPH: 35,  type: "bucket", defaultCapacity: 6 },
+  MOD_PICK:            { name: "MOD Pick",               tranType: "301", defaultUPH: 85,  type: "bucket", defaultCapacity: 6 },
+  WALKIE_PICK:         { name: "Walkie Pick",             tranType: "301", defaultUPH: 75,  type: "bucket", defaultCapacity: 4 },
+  REPLEN_PICK:         { name: "Replenishment Pick",      tranType: "305", defaultUPH: 100, type: "bucket", defaultCapacity: 6 },
+  REPLEN_PUT:          { name: "Replenishment Put",       tranType: "306", defaultUPH: 100, type: "bucket", defaultCapacity: 6 },
+  CUBBY_OUTSORT:       { name: "Cubby Outsort",           tranType: "311", defaultUPH: 75,  type: "bucket", defaultCapacity: 4 },
+  LARGE_CONSOLIDATION: { name: "Large Consolidation",     tranType: null,  defaultUPH: 50,  type: "bucket", defaultCapacity: 4, placeholder: true },
+  SMALL_CONSOLIDATION: { name: "Small Consolidation",     tranType: null,  defaultUPH: 50,  type: "bucket", defaultCapacity: 4, placeholder: true }
 };
 
 /* Default calc settings (overridden by /settings/appSettings once saved) */
-let appSettings = { avgUphWindowShifts: 15, trendRecentDays: 14, trendPriorDays: 14 };
+let appSettings = { avgUphWindowShifts: 15, trendRecentDays: 14, trendPriorDays: 14, shiftStartHour: 17, shiftLengthHours: 10.5 };
+
+/* Zones — purely a visual grouping of stations on the Board (matches the floor-layout mockup). */
+const ZONES = [
+  { label: "Pack Zone",              functions: ["SMALL_PACK", "LARGE_PACK", "LARGE_PACK_CUBBIES"] },
+  { label: "OP Pick Zone",           functions: ["OP_PICK"] },
+  { label: "MOD Pick Zone",          functions: ["MOD_PICK"] },
+  { label: "Walkie Pick Zone",       functions: ["WALKIE_PICK"] },
+  { label: "Replen Zone",            functions: ["REPLEN_PICK", "REPLEN_PUT"] },
+  { label: "Consolidation & Outsort",functions: ["CUBBY_OUTSORT", "LARGE_CONSOLIDATION", "SMALL_CONSOLIDATION"] }
+];
+
+/* Tran Types counted toward the "Outbound so far" stat (Pick + Pack codes; excludes Inbound/Putaway). */
+const OUTBOUND_TRAN_TYPES = ["301", "305", "311", "315"];
 
 /* ======================================================================
    STATE (populated by Firestore listeners)
@@ -370,6 +427,8 @@ function startListeners() {
     document.getElementById("set-window").value = appSettings.avgUphWindowShifts;
     document.getElementById("set-recent").value = appSettings.trendRecentDays;
     document.getElementById("set-prior").value = appSettings.trendPriorDays;
+    document.getElementById("set-shift-start").value = appSettings.shiftStartHour;
+    document.getElementById("set-shift-length").value = appSettings.shiftLengthHours;
     renderBoard();
   });
 
@@ -399,6 +458,17 @@ function startListeners() {
   watchShift(currentShiftDate);
 
   populateFunctionDropdown();
+  populateRoleDropdown();
+}
+
+function populateRoleDropdown() {
+  const sel = document.getElementById("new-assoc-role");
+  sel.innerHTML = ""; // multi-select: leaving nothing selected means "Unassigned"
+  Object.entries(FUNCTIONS).forEach(([key, fn]) => {
+    const opt = document.createElement("option");
+    opt.value = key; opt.textContent = fn.name;
+    sel.appendChild(opt);
+  });
 }
 
 function watchShift(shiftDate) {
@@ -456,6 +526,35 @@ function goalFor(functionKey) {
   return shiftGoalsToday.find(g => g.functionKey === functionKey) || null;
 }
 
+// trainedRoles is the current field; defaultRole is kept as a fallback for anything saved
+// before cross-training support was added.
+function rolesFor(a) {
+  if (Array.isArray(a.trainedRoles) && a.trainedRoles.length) return a.trainedRoles;
+  if (a.defaultRole) return [a.defaultRole];
+  return [];
+}
+
+/* ======================================================================
+   AVATAR HELPERS (initials + a stable color derived from the name —
+   no photo hosting needed)
+   ====================================================================== */
+function initials(name) {
+  const parts = (name || "?").trim().split(/\s+/);
+  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase() || "?";
+}
+function colorForName(name) {
+  let hash = 0;
+  for (let i = 0; i < (name || "").length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return `hsl(${hash % 360}, 55%, 45%)`;
+}
+function ringColorFor(dir) {
+  return dir === "up" ? "#1f8a4c" : dir === "down" ? "#c62c2c" : "transparent";
+}
+function avatarHTML(a, functionKey) {
+  const t = functionKey ? trendFor(a.id, functionKey) : { dir: "flat" };
+  return `<div class="avatar" style="background:${colorForName(a.name || a.employeeId)};--ring-color:${ringColorFor(t.dir)}">${initials(a.name || a.employeeId)}</div>`;
+}
+
 /* ======================================================================
    BOARD RENDER
    ====================================================================== */
@@ -467,89 +566,146 @@ function renderBoard() {
     (activeByStation[s.stationId] = activeByStation[s.stationId] || []).push(s);
   });
 
-  // ---- Labor pool: associates with no active segment today ----
+  // ---- Associate Talent Pool: associates with no active segment today.
+  // Cross-trained associates are listed under EVERY role they're trained in, so
+  // "who could I move to X" is answerable at a glance from any group.
   const assignedIds = new Set(segments.filter(s => !s.endTime).map(s => s.associateId));
   const pool = associates.filter(a => a.active !== false && !assignedIds.has(a.id));
   const poolEl = document.getElementById("pool-list");
   poolEl.innerHTML = "";
-  pool.forEach(a => poolEl.appendChild(associateCard(a, null)));
+
+  const groups = {}; // functionKey|"" -> [associate]
+  pool.forEach(a => {
+    const roles = rolesFor(a);
+    if (roles.length === 0) { (groups[""] = groups[""] || []).push(a); return; }
+    roles.forEach(role => { (groups[role] = groups[role] || []).push(a); });
+  });
+  const orderedGroupKeys = [...Object.keys(FUNCTIONS).filter(k => groups[k]), ...(groups[""] ? [""] : [])];
+  orderedGroupKeys.forEach(key => {
+    const block = document.createElement("div");
+    block.className = "role-group";
+    const label = key ? FUNCTIONS[key].name : "Unassigned";
+    block.innerHTML = `<h3><span>${label} (Available)</span><span>${groups[key].length}</span></h3>`;
+    const dropTarget = document.createElement("div");
+    block.appendChild(dropTarget);
+    groups[key].forEach(a => dropTarget.appendChild(associateCard(a, key || null)));
+    poolEl.appendChild(block);
+  });
   wireDropZone(poolEl, null);
 
-  // ---- Stations ----
+  // ---- Floor Grid, grouped into zones ----
   const wrap = document.getElementById("stations-wrap");
   wrap.innerHTML = "";
   let totalProjected = 0, totalGoal = 0;
 
-  stations.forEach(st => {
-    const fn = FUNCTIONS[st.functionKey] || {};
-    const card = document.createElement("div");
-    card.className = "station-card" + (st.type === "bucket" ? " bucket" : "");
-    const goal = goalFor(st.functionKey);
-    card.innerHTML = `<h3>${st.name}</h3><div class="target">Target ${st.setUPH} UPH${goal ? " · Goal " + goal.targetUnits + " units" : ""}</div>`;
+  ZONES.forEach(zone => {
+    const zoneStations = stations.filter(st => zone.functions.includes(st.functionKey));
+    if (!zoneStations.length) return;
+    const zoneBlock = document.createElement("div");
+    zoneBlock.className = "zone-block";
+    zoneBlock.innerHTML = `<div class="zone-header">${zone.label}</div>`;
+    const zoneGrid = document.createElement("div");
+    zoneGrid.style.display = "grid";
+    zoneGrid.style.gridTemplateColumns = "repeat(auto-fill,minmax(230px,1fr))";
+    zoneGrid.style.gap = "12px";
+    zoneBlock.appendChild(zoneGrid);
 
-    const occupants = activeByStation[st.id] || [];
-    let projectedUnits = 0;
+    zoneStations.forEach(st => {
+      const card = document.createElement("div");
+      card.className = "station-card" + (st.type === "bucket" ? " bucket" : "");
+      const goal = goalFor(st.functionKey);
+      const occupants = activeByStation[st.id] || [];
+      const capacityBit = st.type === "bucket" ? ` · ${occupants.length}/${st.capacity || 1} assigned` : "";
+      card.innerHTML = `<h3>${st.name}</h3><div class="target">Target ${st.setUPH} UPH${goal ? " · EOS Goal " + goal.targetUnits + " units" : ""}${capacityBit}</div>`;
 
-    if (st.type === "slot") {
-      const dropZone = document.createElement("div");
-      dropZone.className = "station-slot";
-      if (occupants.length === 0) {
-        dropZone.innerHTML = `<div class="empty-hint">Drop an associate here</div>`;
+      let projectedUnits = 0;
+
+      if (st.type === "slot") {
+        const dropZone = document.createElement("div");
+        dropZone.className = "station-slot";
+        if (occupants.length === 0) {
+          dropZone.innerHTML = `<div class="empty-hint">Drop an associate here</div>`;
+        } else {
+          const seg = occupants[0];
+          const a = associates.find(x => x.id === seg.associateId);
+          const perf = a ? avgUPH(a.id, st.functionKey) : null;
+          const uph = perf != null ? perf : st.setUPH;
+          const hrs = seg.hoursInFunction != null ? seg.hoursInFunction : (goal ? goal.plannedHours : 8);
+          projectedUnits = uph * hrs;
+          dropZone.appendChild(occupantRow(seg, a, uph, hrs, st.functionKey));
+        }
+        card.appendChild(dropZone);
+        wireDropZone(dropZone, st);
+
+        if (occupants.length) {
+          const uphNow = occupants[0] ? (associates.find(x=>x.id===occupants[0].associateId) ? (avgUPH(occupants[0].associateId, st.functionKey) ?? st.setUPH) : st.setUPH) : st.setUPH;
+          const f = uphNow >= st.setUPH ? "ok" : uphNow >= st.setUPH * 0.85 ? "warn" : "bad";
+          card.innerHTML += `<div class="proj-line">Projected total: ${Math.round(projectedUnits)} units (${uphNow.toFixed(1)} UPH avg)</div><span class="flag ${f}">${f === "ok" ? "ON TRACK" : f === "warn" ? "NEAR TARGET" : "DEFICIT"}</span>`;
+        }
       } else {
-        const seg = occupants[0];
-        const a = associates.find(x => x.id === seg.associateId);
-        const perf = a ? avgUPH(a.id, st.functionKey) : null;
-        const uph = perf != null ? perf : st.setUPH;
-        const hrs = seg.hoursInFunction != null ? seg.hoursInFunction : (goal ? goal.plannedHours : 8);
-        projectedUnits = uph * hrs;
-        dropZone.appendChild(occupantRow(seg, a, uph, hrs));
-      }
-      card.appendChild(dropZone);
-      wireDropZone(dropZone, st);
+        const dropZone = document.createElement("div");
+        dropZone.className = "bucket-drop";
+        if (occupants.length === 0) {
+          dropZone.innerHTML = `<div class="empty-hint">Drop associates here</div>`;
+        }
+        occupants.forEach(seg => {
+          const a = associates.find(x => x.id === seg.associateId);
+          const perf = a ? avgUPH(a.id, st.functionKey) : null;
+          const uph = perf != null ? perf : st.setUPH;
+          const hrs = seg.hoursInFunction != null ? seg.hoursInFunction : (goal ? goal.plannedHours : 8);
+          projectedUnits += uph * hrs;
+          dropZone.appendChild(occupantRow(seg, a, uph, hrs, st.functionKey));
+        });
+        card.appendChild(dropZone);
+        wireDropZone(dropZone, st);
 
-      if (occupants.length) {
-        const uphNow = occupants[0] ? (associates.find(x=>x.id===occupants[0].associateId) ? (avgUPH(occupants[0].associateId, st.functionKey) ?? st.setUPH) : st.setUPH) : st.setUPH;
-        const f = uphNow >= st.setUPH ? "ok" : uphNow >= st.setUPH * 0.85 ? "warn" : "bad";
-        card.innerHTML += `<div class="proj-line">Projected: ${uphNow.toFixed(1)} UPH</div><span class="flag ${f}">${f === "ok" ? "On target" : f === "warn" ? "Slightly under" : "Understaffed"}</span>`;
-      }
-    } else {
-      const dropZone = document.createElement("div");
-      dropZone.className = "bucket-drop";
-      if (occupants.length === 0) {
-        dropZone.innerHTML = `<div class="empty-hint">Drop associates here</div>`;
-      }
-      occupants.forEach(seg => {
-        const a = associates.find(x => x.id === seg.associateId);
-        const perf = a ? avgUPH(a.id, st.functionKey) : null;
-        const uph = perf != null ? perf : st.setUPH;
-        const hrs = seg.hoursInFunction != null ? seg.hoursInFunction : (goal ? goal.plannedHours : 8);
-        projectedUnits += uph * hrs;
-        dropZone.appendChild(occupantRow(seg, a, uph, hrs));
-      });
-      card.appendChild(dropZone);
-      wireDropZone(dropZone, st);
-
-      if (occupants.length) {
-        card.innerHTML += `<div class="proj-line">Projected: ${Math.round(projectedUnits)} units</div>`;
-        if (goal) {
-          const ratio = projectedUnits / goal.targetUnits;
-          const f = ratio >= 1 ? "ok" : ratio >= 0.85 ? "warn" : "bad";
-          card.innerHTML += `<span class="flag ${f}">${f === "ok" ? "Meets goal" : f === "warn" ? "Close to goal" : "Understaffed"}</span>`;
+        if (occupants.length) {
+          card.innerHTML += `<div class="proj-line">Projected total: ${Math.round(projectedUnits)} units</div>`;
+          if (goal) {
+            const ratio = projectedUnits / goal.targetUnits;
+            const f = ratio >= 1 ? "ok" : ratio >= 0.85 ? "warn" : "bad";
+            card.innerHTML += `<span class="flag ${f}">${f === "ok" ? "ON TRACK" : f === "warn" ? "NEAR TARGET" : "DEFICIT"}</span>`;
+          }
         }
       }
-    }
 
-    totalProjected += projectedUnits;
-    if (goal) totalGoal += goal.targetUnits;
-    wrap.appendChild(card);
+      totalProjected += projectedUnits;
+      if (goal) totalGoal += goal.targetUnits;
+      zoneGrid.appendChild(card);
+    });
+
+    wrap.appendChild(zoneBlock);
   });
 
+  // ---- Hero stat bar ----
   document.getElementById("stat-projected").textContent = Math.round(totalProjected);
   document.getElementById("stat-goal").textContent = Math.round(totalGoal);
-  const variance = totalProjected - totalGoal;
-  const varEl = document.getElementById("stat-variance");
-  varEl.textContent = (variance >= 0 ? "+" : "") + Math.round(variance);
-  varEl.style.color = variance >= 0 ? "var(--ok)" : "var(--bad)";
+
+  const paceEl = document.getElementById("stat-pace");
+  if (totalGoal > 0) {
+    const pace = ((totalProjected - totalGoal) / totalGoal) * 100;
+    paceEl.textContent = (pace >= 0 ? "+" : "") + pace.toFixed(1) + "%";
+    paceEl.className = pace >= 0 ? "pos" : "neg";
+  } else {
+    paceEl.textContent = "— (no goal set)";
+    paceEl.className = "";
+  }
+
+  // Outbound so far: snapshot from whatever's been imported for today's shiftDate (not live).
+  const outboundSoFar = uphHistory
+    .filter(h => h.shiftDate === currentShiftDate && OUTBOUND_TRAN_TYPES.includes(h.tranType))
+    .reduce((s, h) => s + (h.units || 0), 0);
+  document.getElementById("stat-outbound").textContent = Math.round(outboundSoFar);
+
+  // Shift progress %, based on Settings > shift start/length (display only, doesn't affect projections).
+  const now = new Date();
+  let shiftStart = new Date(currentShiftDate + "T00:00:00");
+  shiftStart.setHours(Math.floor(appSettings.shiftStartHour), (appSettings.shiftStartHour % 1) * 60, 0, 0);
+  let elapsedMs = now - shiftStart;
+  if (elapsedMs < 0) elapsedMs += 24 * 3600000; // wrapped past midnight into the next calendar day
+  const pct = Math.max(0, Math.min(100, (elapsedMs / (appSettings.shiftLengthHours * 3600000)) * 100));
+  document.getElementById("stat-progress").textContent = Math.round(pct) + "%";
+  document.getElementById("shift-progress-fill").style.width = pct + "%";
 }
 
 function associateCard(a, currentFunctionKey) {
@@ -557,27 +713,37 @@ function associateCard(a, currentFunctionKey) {
   el.className = "assoc-card";
   el.draggable = true;
   el.dataset.associateId = a.id;
+  const myRoles = rolesFor(a);
+  const displayFn = currentFunctionKey || myRoles[0] || null;
   let metaBits = [];
-  if (currentFunctionKey) {
-    const t = trendFor(a.id, currentFunctionKey);
-    const cls = t.dir === "up" ? "trend-up" : t.dir === "down" ? "trend-down" : "trend-flat";
-    const arrow = t.dir === "up" ? "▲" : t.dir === "down" ? "▼" : "–";
-    metaBits.push(`<span class="${cls}">${arrow} ${Math.abs(t.delta).toFixed(1)} UPH</span>`);
+  if (displayFn) {
+    const perf = avgUPH(a.id, displayFn);
+    if (perf != null) metaBits.push(`<span>${perf.toFixed(0)} UPH</span>`);
+    const t = trendFor(a.id, displayFn);
+    if (t.dir !== "flat") {
+      const cls = t.dir === "up" ? "trend-up" : "trend-down";
+      const arrow = t.dir === "up" ? "▲" : "▼";
+      metaBits.push(`<span class="${cls}">${arrow} ${Math.abs(t.delta).toFixed(1)}</span>`);
+    }
   }
-  el.innerHTML = `<div class="name">${a.name || a.employeeId}</div><div class="meta">${a.associateCode || ""}${metaBits.length ? "<span>"+metaBits.join(" ")+"</span>" : ""}</div>`;
+  const tags = myRoles.length > 1
+    ? `<div class="role-tags">${myRoles.map(r => `<span class="role-tag">${FUNCTIONS[r] ? FUNCTIONS[r].name : r}</span>`).join("")}</div>`
+    : "";
+  el.innerHTML = `${avatarHTML(a, displayFn)}<div style="min-width:0"><div class="name">${a.name || a.employeeId}</div><div class="meta">${metaBits.join(" ")}</div>${tags}</div>`;
   el.addEventListener("dragstart", e => {
     e.dataTransfer.setData("text/plain", a.id);
   });
   return el;
 }
 
-function occupantRow(seg, a, uph, hrs) {
+function occupantRow(seg, a, uph, hrs, functionKey) {
   const row = document.createElement("div");
   row.className = "occupant";
   row.draggable = true;
   row.dataset.associateId = seg.associateId;
+  const nameHtml = a ? `${avatarHTML(a, functionKey)}<span class="name">${a.name || a.employeeId}</span>` : `<span class="name">(unknown)</span>`;
   row.innerHTML = `
-    <span>${a ? (a.name || a.employeeId) : "(unknown)"} <span style="color:var(--muted)">(${uph.toFixed(1)} UPH)</span></span>
+    <span class="who">${nameHtml} <span style="color:var(--muted)">(${uph.toFixed(1)} UPH)</span></span>
     <span>
       <input class="hrs" type="number" step="0.25" value="${hrs}" title="Hours in function">
       <button class="remove" title="Return to pool">✕</button>
@@ -612,9 +778,13 @@ function wireDropZone(el, station) {
 async function handleDrop(associateId, station) {
   const activeSeg = segments.find(s => s.associateId === associateId && !s.endTime);
 
-  if (station && station.type === "slot") {
-    const occupied = segments.find(s => s.stationId === station.id && !s.endTime && s.associateId !== associateId);
-    if (occupied) { alert(`${station.name} is already occupied. Remove that associate first.`); return; }
+  if (station) {
+    const capacity = station.capacity || (station.type === "slot" ? 1 : 1);
+    const occupantCount = segments.filter(s => s.stationId === station.id && !s.endTime && s.associateId !== associateId).length;
+    if (occupantCount >= capacity) {
+      alert(`${station.name} is at capacity (${occupantCount}/${capacity}). Move someone out first, or raise its capacity in Admin > Stations.`);
+      return;
+    }
   }
   if (activeSeg && station && activeSeg.stationId === station.id) return; // no-op, same spot
 
@@ -662,12 +832,12 @@ document.getElementById("seed-btn").addEventListener("click", async () => {
         const id = `${key}_${i}`;
         const name = fn.count === 1 ? fn.name : `${fn.name} ${i}`;
         batch.set(db.collection("stations").doc(id), {
-          name, functionKey: key, tranType: fn.tranType, setUPH: fn.defaultUPH, type: "slot", order: order++
+          name, functionKey: key, tranType: fn.tranType, setUPH: fn.defaultUPH, type: "slot", capacity: 1, order: order++
         }, { merge: true });
       }
     } else {
       batch.set(db.collection("stations").doc(key), {
-        name: fn.name, functionKey: key, tranType: fn.tranType, setUPH: fn.defaultUPH, type: "bucket", order: order++
+        name: fn.name, functionKey: key, tranType: fn.tranType, setUPH: fn.defaultUPH, type: "bucket", capacity: fn.defaultCapacity || 4, order: order++
       }, { merge: true });
     }
   });
@@ -680,17 +850,21 @@ function renderStationsAdmin() {
   tbody.innerHTML = "";
   stations.forEach(st => {
     const tr = document.createElement("tr");
+    const capacityCell = st.type === "slot"
+      ? `1 <span style="color:var(--muted)">(fixed)</span>`
+      : `<input type="number" min="1" value="${st.capacity || 1}" data-field="capacity" style="width:60px">`;
     tr.innerHTML = `
       <td><input value="${st.name}" data-field="name"></td>
       <td>${(FUNCTIONS[st.functionKey] || {}).name || st.functionKey}</td>
       <td>${st.type}</td>
       <td>${st.tranType || "(none set)"}</td>
       <td><input type="number" value="${st.setUPH}" data-field="setUPH" style="width:70px"></td>
+      <td>${capacityCell}</td>
       <td class="row-actions"><button data-action="delete">Delete</button></td>`;
     tr.querySelectorAll("input").forEach(inp => {
       inp.addEventListener("change", () => {
         const field = inp.dataset.field;
-        const val = field === "setUPH" ? parseFloat(inp.value) || 0 : inp.value;
+        const val = (field === "setUPH" || field === "capacity") ? parseFloat(inp.value) || 0 : inp.value;
         db.collection("stations").doc(st.id).update({ [field]: val });
       });
     });
@@ -708,11 +882,13 @@ document.getElementById("add-assoc-btn").addEventListener("click", async () => {
   const employeeId = document.getElementById("new-assoc-eid").value.trim();
   const name = document.getElementById("new-assoc-name").value.trim();
   const associateCode = document.getElementById("new-assoc-code").value.trim();
+  const trainedRoles = [...document.getElementById("new-assoc-role").selectedOptions].map(o => o.value);
   if (!employeeId || !name) { alert("Employee Id and name are required."); return; }
-  await db.collection("associates").add({ employeeId, name, associateCode, active: true });
+  await db.collection("associates").add({ employeeId, name, associateCode, trainedRoles, active: true });
   document.getElementById("new-assoc-eid").value = "";
   document.getElementById("new-assoc-name").value = "";
   document.getElementById("new-assoc-code").value = "";
+  document.getElementById("new-assoc-role").selectedIndex = -1;
 });
 
 document.getElementById("bulk-add-assoc-btn").addEventListener("click", async () => {
@@ -730,7 +906,7 @@ document.getElementById("bulk-add-assoc-btn").addEventListener("click", async ()
 
   const batch = db.batch();
   toAdd.forEach(id => {
-    batch.set(db.collection("associates").doc(), { employeeId: id, name: id, associateCode: "", active: true });
+    batch.set(db.collection("associates").doc(), { employeeId: id, name: id, associateCode: "", trainedRoles: [], active: true });
   });
   await batch.commit();
   logEl.textContent = `Added ${toAdd.length} associate(s).` + (skipped ? ` Skipped ${skipped} already on file.` : "");
@@ -742,16 +918,23 @@ function renderAssociatesAdmin() {
   tbody.innerHTML = "";
   associates.forEach(a => {
     const tr = document.createElement("tr");
+    const myRoles = rolesFor(a);
+    const roleOptions = Object.entries(FUNCTIONS)
+      .map(([key, fn]) => `<option value="${key}" ${myRoles.includes(key) ? "selected" : ""}>${fn.name}</option>`).join("");
     tr.innerHTML = `
       <td>${a.employeeId}</td>
       <td><input value="${a.name}" data-field="name"></td>
       <td><input value="${a.associateCode || ""}" data-field="associateCode"></td>
+      <td><select data-field="trainedRoles" multiple size="3">${roleOptions}</select></td>
       <td><input type="checkbox" data-field="active" ${a.active !== false ? "checked" : ""}></td>
       <td class="row-actions"><button data-action="delete">Delete</button></td>`;
-    tr.querySelectorAll("input").forEach(inp => {
+    tr.querySelectorAll("input, select").forEach(inp => {
       inp.addEventListener("change", () => {
         const field = inp.dataset.field;
-        const val = field === "active" ? inp.checked : inp.value;
+        let val;
+        if (field === "active") val = inp.checked;
+        else if (field === "trainedRoles") val = [...inp.selectedOptions].map(o => o.value);
+        else val = inp.value;
         db.collection("associates").doc(a.id).update({ [field]: val });
       });
     });
@@ -804,7 +987,17 @@ document.getElementById("save-settings-btn").addEventListener("click", async () 
   const avgUphWindowShifts = parseInt(document.getElementById("set-window").value) || 15;
   const trendRecentDays = parseInt(document.getElementById("set-recent").value) || 14;
   const trendPriorDays = parseInt(document.getElementById("set-prior").value) || 14;
-  await db.collection("settings").doc("appSettings").set({ avgUphWindowShifts, trendRecentDays, trendPriorDays });
+  const shiftStartHour = parseFloat(document.getElementById("set-shift-start").value);
+  const shiftLengthHours = parseFloat(document.getElementById("set-shift-length").value);
+  await db.collection("settings").doc("appSettings").set({
+    avgUphWindowShifts, trendRecentDays, trendPriorDays,
+    shiftStartHour: isNaN(shiftStartHour) ? 17 : shiftStartHour,
+    shiftLengthHours: isNaN(shiftLengthHours) ? 10.5 : shiftLengthHours
+  });
+});
+
+document.getElementById("ai-fab").addEventListener("click", () => {
+  alert("AI-suggested placement, chat assistant, and anomaly alerts are planned for Phase 3, once a secure backend (Cloud Function) is in place to hold the API key. Not wired up yet.");
 });
 
 /* ======================================================================
