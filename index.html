@@ -113,6 +113,8 @@
   .occupant .hrs{width:56px;padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;}
   .occupant button.remove{border:1px solid var(--bad);background:none;color:var(--bad);cursor:pointer;font-size:11px;line-height:1.4;padding:3px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0;}
   .occupant button.remove:hover{background:var(--bad);color:#fff;}
+  .occupant button.split{border:1px solid var(--accent);background:none;color:var(--accent);cursor:pointer;font-size:11px;line-height:1.4;padding:3px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0;}
+  .occupant button.split:hover{background:var(--accent);color:#fff;}
   .flag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;margin-top:6px;}
   .flag.ok{background:var(--ok-bg);color:var(--ok);}
   .flag.warn{background:var(--warn-bg);color:var(--warn);}
@@ -371,6 +373,22 @@
     <div class="modal-actions">
       <button class="btn secondary" id="certs-cancel-btn">Cancel</button>
       <button class="btn" id="certs-save-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Split picker modal: an occupant's "Split" button opens this to add a SECOND, concurrent
+     station assignment for them without closing their current one(s) — both stay active at
+     once, each with its own editable hours, and each station's count/UPH stays separate since
+     they're just two independent segments. See openSplitModal() in the script. -->
+<div class="modal-overlay hidden" id="split-modal">
+  <div class="modal-box">
+    <h3>Split into another function</h3>
+    <div class="note" id="split-note">Adds a second, concurrent assignment — their current one stays active too. Set each function's hours afterward on its own card.</div>
+    <div class="certs-list" id="split-list"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="split-cancel-btn">Cancel</button>
+      <button class="btn" id="split-confirm-btn">Add split</button>
     </div>
   </div>
 </div>
@@ -910,7 +928,7 @@ function associateCard(a, currentFunctionKey) {
     : "";
   el.innerHTML = `${avatarHTML(a, displayFn)}<div style="min-width:0"><div class="name">${a.name || a.employeeId}</div><div class="meta">${metaBits.join(" ")}</div>${tags}</div>`;
   el.addEventListener("dragstart", e => {
-    e.dataTransfer.setData("text/plain", a.id);
+    e.dataTransfer.setData("text/plain", JSON.stringify({ aid: a.id, sid: null }));
   });
   return el;
 }
@@ -925,6 +943,7 @@ function occupantRow(seg, a, uph, hrs, functionKey) {
     <div class="who">${nameHtml}<span class="uph">(${uph.toFixed(1)} UPH)</span></div>
     <div class="controls">
       <input class="hrs" type="number" step="0.25" value="${hrs}" title="Hours in function" draggable="false">
+      <button class="split" type="button" draggable="false" title="Also assign to a second function at the same time">⑂ Split</button>
       <button class="remove" type="button" draggable="false" title="Return to pool">✕ Remove</button>
     </div>`;
   // The whole row is draggable (so you can drag someone straight to another station), but that
@@ -932,14 +951,15 @@ function occupantRow(seg, a, uph, hrs, functionKey) {
   // gets read as "start dragging the row" instead of "click the button." Bail out of the drag
   // entirely when it's starting from one of those controls so their click/change still fires.
   row.addEventListener("dragstart", e => {
-    if (e.target.closest(".remove, .hrs")) { e.preventDefault(); return; }
-    e.dataTransfer.setData("text/plain", seg.associateId);
+    if (e.target.closest(".remove, .hrs, .split")) { e.preventDefault(); return; }
+    e.dataTransfer.setData("text/plain", JSON.stringify({ aid: seg.associateId, sid: seg.id }));
   });
   row.querySelector(".hrs").addEventListener("change", e => {
     db.collection("assignments").doc(currentShiftDate).collection("segments").doc(seg.id)
       .update({ hoursInFunction: parseFloat(e.target.value) || 0 });
   });
   row.querySelector(".remove").addEventListener("click", () => closeSegment(seg));
+  row.querySelector(".split").addEventListener("click", () => openSplitModal(seg.associateId));
   return row;
 }
 
@@ -955,14 +975,23 @@ function wireDropZone(el, station) {
   el.addEventListener("drop", e => {
     e.preventDefault();
     el.classList.remove("dragover");
-    const associateId = e.dataTransfer.getData("text/plain");
+    const raw = e.dataTransfer.getData("text/plain");
+    if (!raw) return;
+    // Payload is JSON {aid, sid} — sid identifies exactly which of an associate's segments is
+    // being dragged (relevant once someone can be split across 2+ concurrent segments), or
+    // null when dragging straight from the Talent Pool (no segment yet). Falls back to
+    // treating the raw string as a bare associateId in case an old cached page sent that.
+    let associateId, fromSegId = null;
+    try { ({ aid: associateId, sid: fromSegId } = JSON.parse(raw)); } catch { associateId = raw; }
     if (!associateId) return;
-    handleDrop(associateId, station);
+    handleDrop(associateId, station, fromSegId);
   });
 }
 
-async function handleDrop(associateId, station) {
-  const activeSeg = segments.find(s => s.associateId === associateId && !s.endTime);
+async function handleDrop(associateId, station, fromSegId) {
+  const activeSeg = fromSegId
+    ? segments.find(s => s.id === fromSegId && !s.endTime)
+    : segments.find(s => s.associateId === associateId && !s.endTime);
 
   if (station) {
     const capacity = station.capacity || (station.type === "slot" ? 1 : 1);
@@ -1000,6 +1029,83 @@ async function closeSegment(seg) {
   const hours = Math.max(0, (now.toMillis() - startMs) / 3600000);
   await db.collection("assignments").doc(currentShiftDate).collection("segments").doc(seg.id)
     .update({ endTime: now, hoursInFunction: Math.round(hours * 100) / 100 });
+}
+
+/* ======================================================================
+   SPLIT: assign someone to a SECOND function at the same time, without
+   closing their existing segment(s). Each segment keeps its own hours,
+   and each station's occupant count / projected units / UPH stay based
+   only on that station's own segments — nothing shared gets double-
+   counted since a split associate is just two independent segment docs.
+   ====================================================================== */
+async function splitSegment(associateId, station) {
+  const alreadyThere = segments.some(s => s.associateId === associateId && !s.endTime && s.stationId === station.id);
+  if (alreadyThere) return; // no-op, already active there
+
+  const capacity = station.capacity || (station.type === "slot" ? 1 : 1);
+  const occupantCount = segments.filter(s => s.stationId === station.id && !s.endTime).length;
+  if (occupantCount >= capacity) {
+    alert(`${station.name} is at capacity (${occupantCount}/${capacity}). Move someone out first, or raise its capacity in Admin > Stations.`);
+    return;
+  }
+
+  const goal = goalFor(station.functionKey);
+  const now = firebase.firestore.Timestamp.now();
+  await db.collection("assignments").doc(currentShiftDate).collection("segments").add({
+    associateId, stationId: station.id, functionKey: station.functionKey,
+    startTime: now, endTime: null,
+    hoursInFunction: goal ? goal.plannedHours : null
+  });
+}
+
+function openSplitModal(associateId) {
+  const overlay = document.getElementById("split-modal");
+  const list = document.getElementById("split-list");
+  const noteEl = document.getElementById("split-note");
+  list.innerHTML = "";
+
+  const activeStationIds = new Set(segments.filter(s => s.associateId === associateId && !s.endTime).map(s => s.stationId));
+  const options = stations.filter(st => !activeStationIds.has(st.id));
+  const confirmBtn = document.getElementById("split-confirm-btn");
+
+  if (!options.length) {
+    list.innerHTML = `<div class="note" style="margin:0;">Already assigned to every station.</div>`;
+    confirmBtn.disabled = true;
+  } else {
+    confirmBtn.disabled = false;
+    options.forEach((st, i) => {
+      const label = document.createElement("label");
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "split-target";
+      radio.value = st.id;
+      if (i === 0) radio.checked = true;
+      label.appendChild(radio);
+      label.appendChild(document.createTextNode(st.name));
+      list.appendChild(label);
+    });
+  }
+  noteEl.textContent = "Adds a second, concurrent assignment — their current one stays active too. Set each function's hours afterward on its own card.";
+  overlay.classList.remove("hidden");
+
+  function close() {
+    overlay.classList.add("hidden");
+    confirmBtn.removeEventListener("click", onConfirm);
+    cancelBtn.removeEventListener("click", close);
+    overlay.removeEventListener("click", onOverlayClick);
+  }
+  function onConfirm() {
+    const picked = list.querySelector('input[name="split-target"]:checked');
+    if (!picked) return;
+    const station = stations.find(st => st.id === picked.value);
+    close();
+    if (station) splitSegment(associateId, station);
+  }
+  function onOverlayClick(e) { if (e.target === overlay) close(); }
+  const cancelBtn = document.getElementById("split-cancel-btn");
+  confirmBtn.addEventListener("click", onConfirm);
+  cancelBtn.addEventListener("click", close);
+  overlay.addEventListener("click", onOverlayClick);
 }
 
 // One-time cleanup for the duplicate-listener bug: closes every still-active segment for the
