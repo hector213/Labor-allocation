@@ -16,6 +16,9 @@
 <!-- SheetJS - parses the transaction .xlsx/.csv export in the browser -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
+<!-- Chart.js - draws the Shift Trend (Actual vs Ideal Target) line chart -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+
 <style>
   :root{
     --bg:#f4f6f8; --panel:#ffffff; --border:#dfe3e8; --text:#1c2530; --muted:#6b7684;
@@ -64,6 +67,14 @@
   #board-grid{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start;}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;}
   .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 10px;}
+  #trend-panel{margin-top:16px;}
+  .trend-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;}
+  .trend-toggle{display:flex;gap:6px;}
+  .trend-toggle-btn{background:#fff;border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;}
+  .trend-toggle-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .trend-stats{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:12px;}
+  .trend-stats .shift-stat{color:var(--muted);}
+  .trend-stats .shift-stat b{color:var(--text);}
   /* Pool panel sticks in place while the Floor Grid (usually taller) scrolls past it, and the
      list itself scrolls internally once it's too long for the viewport, instead of stretching
      the whole page. */
@@ -201,9 +212,11 @@
         </div>
         <div class="shift-stat">Shift progress <b id="stat-progress">0%</b></div>
         <div class="shift-stat">Pack-out so far (last import) <b id="stat-outbound">0</b></div>
+        <div class="shift-stat" title="Combined goal &times; shift progress % &mdash; where you SHOULD be by now">Expected by now (Pack) <b id="stat-expected">0</b></div>
+        <div class="shift-stat" title="Pack-out so far vs Expected by now &mdash; are you behind/ahead RIGHT NOW">Actual vs Expected (Pack) <b id="stat-pace-now">0%</b></div>
         <div class="shift-stat">Projected EOS total (Pack) <b id="stat-projected">0</b></div>
         <div class="shift-stat">Combined goal (Pack) <b id="stat-goal">0</b></div>
-        <div class="shift-stat">Overall pace (Pack) <b id="stat-pace">0%</b></div>
+        <div class="shift-stat" title="Projected EOS total vs Combined goal &mdash; on pace to hit goal BY END OF SHIFT">EOS pace (Pack) <b id="stat-pace">0%</b></div>
         <div class="shift-progress-bar"><div id="shift-progress-fill" style="width:0%"></div></div>
       </div>
 
@@ -217,6 +230,32 @@
         <div class="panel">
           <h2>Floor Grid</h2>
           <div id="stations-wrap"></div>
+        </div>
+      </div>
+
+      <!-- Shift Trend: Actual vs Ideal Target cumulative units across the shift, like the
+           Packing_Trend sheet in your Shift Cost Sheet workbook, with a toggle between Pack
+           (315) and Pick (301) instead of a separate sheet per function. See renderTrendChart(). -->
+      <div class="panel" id="trend-panel">
+        <div class="trend-header">
+          <h2 style="margin:0;">Shift Trend &mdash; Actual vs Ideal Target</h2>
+          <div class="trend-toggle">
+            <button type="button" class="trend-toggle-btn active" data-trend-tran="315">Pack</button>
+            <button type="button" class="trend-toggle-btn" data-trend-tran="301">Pick</button>
+          </div>
+        </div>
+        <div class="trend-stats">
+          <div class="shift-stat">Actual so far <b id="trend-actual">0</b></div>
+          <div class="shift-stat">Ideal target so far <b id="trend-ideal">0</b></div>
+          <div class="shift-stat">Variance <b id="trend-variance">0</b></div>
+          <div class="shift-stat">Team avg UPH (live) <b id="trend-avg-uph">0.0</b></div>
+        </div>
+        <canvas id="trend-chart" height="90"></canvas>
+        <div class="note" id="trend-note" style="margin-top:10px;">
+          Ideal target line is the Combined goal for this function group, spread evenly across the
+          shift window by elapsed clock time &mdash; a simplification of the Packing_Trend sheet's
+          production-minute schedule (which excludes breaks/lunch/cleanup minute-by-minute). Close
+          enough to flag "behind pace" in real time; treat exact minute-level variance as approximate.
         </div>
       </div>
     </section>
@@ -489,6 +528,10 @@ let segments = [];       // active shift's segments: {id, associateId, stationId
 let shiftGoalsToday = []; // {id, functionKey, targetUnits, plannedHours}
 let currentShiftDate = todayShiftDateStr();
 let unsubSegments = null;
+let unsubTrend = null;
+let shiftTrendDocs = {}; // tranType ("315"/"301") -> {buckets: [{label, units}]}
+let selectedTrendTran = "315";
+let trendChartInstance = null;
 
 /* ======================================================================
    SHIFT DATE / WINDOW HELPERS
@@ -528,6 +571,38 @@ function todayShiftDateStr(d) {
 function inShiftWindow(hh) {
   const start = appSettings.shiftStartHour, maxEnd = shiftMaxEndHour();
   return start <= maxEnd ? (hh >= start && hh <= maxEnd) : (hh >= start || hh <= maxEnd);
+}
+
+/* ======================================================================
+   SHIFT TREND BUCKETS — 30-minute clock-time buckets spanning the shift window (e.g. 5:00 PM
+   to 4:30 AM), used by both the import pipeline (sums Tran Qty into buckets alongside the
+   normal per-associate aggregation) and the Shift Trend chart. Mirrors the Packing_Trend
+   sheet's half-hour rows, but by wall-clock time rather than the sheet's break-adjusted
+   "production minutes" schedule — see the note on the Shift Trend panel.
+   ====================================================================== */
+function shiftBucketList() {
+  const start = appSettings.shiftStartHour;
+  const totalHours = appSettings.shiftLengthHours + (appSettings.shiftGraceHours || 0);
+  const count = Math.round(totalHours / 0.5);
+  const buckets = [];
+  for (let i = 0; i < count; i++) {
+    const hh = (start + i * 0.5) % 24;
+    const h24 = Math.floor(hh);
+    const min = Math.round((hh % 1) * 60);
+    const ampm = h24 < 12 ? "AM" : "PM";
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    buckets.push({ hh, label: `${h12}:${String(min).padStart(2, "0")} ${ampm}` });
+  }
+  return buckets;
+}
+
+// Which bucket index a given hour-of-day (0-24 float) falls into, or -1 if outside the window.
+function bucketIndexForHour(hh, buckets) {
+  const start = appSettings.shiftStartHour;
+  let offset = hh - start;
+  if (offset < 0) offset += 24; // wrapped past midnight
+  const idx = Math.floor(offset / 0.5);
+  return idx >= 0 && idx < buckets.length ? idx : -1;
 }
 
 /* ======================================================================
@@ -632,6 +707,14 @@ function watchShift(shiftDate) {
     shiftGoalsToday = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderBoard();
     renderGoalsAdmin();
+    renderTrendChart();
+  });
+  if (unsubTrend) unsubTrend();
+  shiftTrendDocs = {};
+  unsubTrend = db.collection("shiftTrend").where("shiftDate", "==", shiftDate).onSnapshot(snap => {
+    shiftTrendDocs = {};
+    snap.docs.forEach(d => { shiftTrendDocs[d.data().tranType] = d.data(); });
+    renderTrendChart();
   });
 }
 
@@ -897,6 +980,7 @@ function renderBoard() {
   document.getElementById("stat-projected").textContent = Math.round(totalProjected);
   document.getElementById("stat-goal").textContent = Math.round(totalGoal);
 
+  // EOS pace: Projected EOS total vs Combined goal — "will Pack finish the shift on target."
   const paceEl = document.getElementById("stat-pace");
   if (totalGoal > 0) {
     const pace = ((totalProjected - totalGoal) / totalGoal) * 100;
@@ -923,6 +1007,121 @@ function renderBoard() {
   const pct = Math.max(0, Math.min(100, (elapsedMs / (appSettings.shiftLengthHours * 3600000)) * 100));
   document.getElementById("stat-progress").textContent = Math.round(pct) + "%";
   document.getElementById("shift-progress-fill").style.width = pct + "%";
+
+  // Expected by now / Actual vs Expected: Combined goal prorated to elapsed shift time (e.g. 90%
+  // through the shift, expected = 90% of goal), compared against Pack-out so far. Unlike EOS pace
+  // above (which only tells you whether the full-shift projection will land on target), this
+  // answers "am I behind RIGHT NOW" — useful early in a shift when EOS pace can look fine just
+  // because there's still time left to catch up.
+  const expectedSoFar = totalGoal * (pct / 100);
+  document.getElementById("stat-expected").textContent = Math.round(expectedSoFar);
+  const paceNowEl = document.getElementById("stat-pace-now");
+  if (totalGoal > 0 && expectedSoFar > 0) {
+    const paceNow = ((packoutSoFar - expectedSoFar) / expectedSoFar) * 100;
+    paceNowEl.textContent = (paceNow >= 0 ? "+" : "") + paceNow.toFixed(1) + "%";
+    paceNowEl.className = paceNow >= 0 ? "pos" : "neg";
+  } else {
+    paceNowEl.textContent = "— (no goal set)";
+    paceNowEl.className = "";
+  }
+
+  renderTrendChart();
+}
+
+/* ======================================================================
+   SHIFT TREND CHART — Actual vs Ideal Target cumulative units across the shift, toggled
+   between Pack (315) and Pick (301). See shiftBucketList()/bucketIndexForHour() above and the
+   import-time bucket aggregation in cleanRows()/the commit handler below for how
+   shiftTrendDocs gets populated.
+   ====================================================================== */
+document.querySelectorAll(".trend-toggle-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    selectedTrendTran = btn.dataset.trendTran;
+    document.querySelectorAll(".trend-toggle-btn").forEach(b => b.classList.toggle("active", b === btn));
+    renderTrendChart();
+  });
+});
+
+function renderTrendChart() {
+  const canvas = document.getElementById("trend-chart");
+  if (!canvas || typeof Chart === "undefined") return; // not on the Board tab yet, or CDN still loading
+
+  const buckets = shiftBucketList();
+  const doc = shiftTrendDocs[selectedTrendTran];
+  const bucketUnits = buckets.map(() => 0);
+  if (doc && Array.isArray(doc.buckets)) {
+    doc.buckets.forEach((b, i) => { if (i < bucketUnits.length) bucketUnits[i] = b.units || 0; });
+  }
+
+  // Combined goal for whichever functions share this Tran Type (e.g. Small/Large/WOS Pack for
+  // 315; OP/MOD/Walkie/WOS Pick for 301) — same "Combined goal" concept as the hero stat bar,
+  // just generalized beyond Pack.
+  const groupFnKeys = Object.keys(FUNCTIONS).filter(k => FUNCTIONS[k].tranType === selectedTrendTran);
+  const dailyTarget = shiftGoalsToday
+    .filter(g => groupFnKeys.includes(g.functionKey))
+    .reduce((s, g) => s + (g.targetUnits || 0), 0);
+
+  const actualCum = [], idealCum = [];
+  let running = 0;
+  buckets.forEach((b, i) => {
+    running += bucketUnits[i];
+    actualCum.push(running);
+    idealCum.push(Math.round(dailyTarget * ((i + 1) / buckets.length)));
+  });
+
+  // "So far" = the bucket containing right now, so the summary stats above the chart read as a
+  // live snapshot rather than the full-shift end totals.
+  const now = new Date();
+  const hh = now.getHours() + now.getMinutes() / 60;
+  let soFarIdx = bucketIndexForHour(hh, buckets);
+  if (soFarIdx === -1) soFarIdx = buckets.length - 1;
+  const actualSoFar = actualCum[soFarIdx] || 0;
+  const idealSoFar = idealCum[soFarIdx] || 0;
+
+  document.getElementById("trend-actual").textContent = Math.round(actualSoFar);
+  document.getElementById("trend-ideal").textContent = dailyTarget > 0 ? Math.round(idealSoFar) : "— (no goal set)";
+  const varEl = document.getElementById("trend-variance");
+  if (dailyTarget > 0) {
+    const diff = actualSoFar - idealSoFar;
+    varEl.textContent = (diff >= 0 ? "+" : "") + Math.round(diff);
+    varEl.className = diff >= 0 ? "pos" : "neg";
+  } else {
+    varEl.textContent = "—";
+    varEl.className = "";
+  }
+
+  // Team avg UPH (live): actual units so far / production hours elapsed since shift start.
+  let shiftStart = new Date(currentShiftDate + "T00:00:00");
+  shiftStart.setHours(Math.floor(appSettings.shiftStartHour), (appSettings.shiftStartHour % 1) * 60, 0, 0);
+  let elapsedMs = now - shiftStart;
+  if (elapsedMs < 0) elapsedMs += 24 * 3600000;
+  const windowHours = appSettings.shiftLengthHours + (appSettings.shiftGraceHours || 0);
+  const elapsedHours = Math.max(0, Math.min(elapsedMs / 3600000, windowHours));
+  const avgUphLive = elapsedHours > 0 ? actualSoFar / elapsedHours : 0;
+  document.getElementById("trend-avg-uph").textContent = avgUphLive.toFixed(1);
+
+  const labels = buckets.map(b => b.label);
+  const datasets = [
+    { label: "Actual Cumulative", data: actualCum, borderColor: "#2f6fed", backgroundColor: "transparent", tension: 0.15, pointRadius: 2 },
+    { label: "Ideal Target Cumulative", data: idealCum, borderColor: "#9aa4b2", borderDash: [6, 4], backgroundColor: "transparent", tension: 0, pointRadius: 0 }
+  ];
+  if (trendChartInstance) {
+    trendChartInstance.data.labels = labels;
+    trendChartInstance.data.datasets[0].data = actualCum;
+    trendChartInstance.data.datasets[1].data = idealCum;
+    trendChartInstance.update();
+  } else {
+    trendChartInstance = new Chart(canvas, {
+      type: "line",
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { position: "bottom" } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  }
 }
 
 function associateCard(a, currentFunctionKey) {
@@ -1486,6 +1685,25 @@ document.getElementById("ai-fab").addEventListener("click", () => {
    -> aggregate to per-associate/per-TranType/per-day UPH.
    ====================================================================== */
 let pendingImportRows = null;
+let pendingTrendBuckets = null; // { "shiftDate|tranType": [units, units, ...] } for the Shift Trend chart
+
+// Sums cleaned (deduped) rows into the same 30-min buckets the Shift Trend chart reads, for
+// just the two Tran Types the chart cares about (315 Pack, 301 Pick) — everything else is
+// already covered by the per-associate uphHistory aggregation and doesn't need a bucket series.
+function buildTrendBuckets(cleaned) {
+  const buckets = shiftBucketList();
+  const out = {};
+  cleaned.forEach(r => {
+    if (r.tranType !== "315" && r.tranType !== "301") return;
+    const hh = r.dateTime.getHours() + r.dateTime.getMinutes() / 60;
+    const idx = bucketIndexForHour(hh, buckets);
+    if (idx === -1) return;
+    const key = `${r.shiftDate}|${r.tranType}`;
+    if (!out[key]) out[key] = buckets.map(() => 0);
+    out[key][idx] += r.qty;
+  });
+  return out;
+}
 
 document.getElementById("import-btn").addEventListener("click", async () => {
   const file = document.getElementById("import-file").files[0];
@@ -1497,6 +1715,7 @@ document.getElementById("import-btn").addEventListener("click", async () => {
     const cleaned = cleanRows(rows, log);
     const grouped = aggregateToUPH(cleaned, log);
     pendingImportRows = grouped;
+    pendingTrendBuckets = buildTrendBuckets(cleaned);
     document.getElementById("commit-btn").classList.remove("hidden");
     log.textContent += `\nReady to write ${grouped.length} UPH record(s). Click "Write to History" to commit.`;
   } catch (err) {
@@ -1518,9 +1737,18 @@ document.getElementById("commit-btn").addEventListener("click", async () => {
       expireAt: firebase.firestore.Timestamp.fromDate(expire)
     });
   });
+  const bucketLabels = shiftBucketList().map(b => b.label);
+  Object.entries(pendingTrendBuckets || {}).forEach(([key, unitsArr]) => {
+    const [shiftDate, tranType] = key.split("|");
+    batch.set(db.collection("shiftTrend").doc(`${shiftDate}_${tranType}`), {
+      shiftDate, tranType,
+      buckets: unitsArr.map((units, i) => ({ label: bucketLabels[i], units }))
+    });
+  });
   await batch.commit();
-  log.textContent += `\nWrote ${pendingImportRows.length} record(s) to uphHistory.`;
+  log.textContent += `\nWrote ${pendingImportRows.length} record(s) to uphHistory and ${Object.keys(pendingTrendBuckets || {}).length} Shift Trend bucket set(s).`;
   pendingImportRows = null;
+  pendingTrendBuckets = null;
   document.getElementById("commit-btn").classList.add("hidden");
 });
 
@@ -1528,14 +1756,18 @@ document.getElementById("clear-shiftdate-btn").addEventListener("click", async (
   const log = document.getElementById("clear-shiftdate-log");
   const shiftDate = document.getElementById("clear-shiftdate").value;
   if (!shiftDate) { log.textContent = "Pick a date first."; return; }
-  if (!confirm(`Delete ALL uphHistory records for ${shiftDate}? This can't be undone.`)) return;
+  if (!confirm(`Delete ALL uphHistory and Shift Trend records for ${shiftDate}? This can't be undone.`)) return;
   log.textContent = "Deleting...";
-  const snap = await db.collection("uphHistory").where("shiftDate", "==", shiftDate).get();
-  if (snap.empty) { log.textContent = `No records found for ${shiftDate}.`; return; }
+  const [uphSnap, trendSnap] = await Promise.all([
+    db.collection("uphHistory").where("shiftDate", "==", shiftDate).get(),
+    db.collection("shiftTrend").where("shiftDate", "==", shiftDate).get()
+  ]);
+  if (uphSnap.empty && trendSnap.empty) { log.textContent = `No records found for ${shiftDate}.`; return; }
   const batch = db.batch();
-  snap.forEach(doc => batch.delete(doc.ref));
+  uphSnap.forEach(doc => batch.delete(doc.ref));
+  trendSnap.forEach(doc => batch.delete(doc.ref));
   await batch.commit();
-  log.textContent = `Deleted ${snap.size} record(s) for ${shiftDate}.`;
+  log.textContent = `Deleted ${uphSnap.size} uphHistory record(s) and ${trendSnap.size} Shift Trend record(s) for ${shiftDate}.`;
 });
 
 function parseTransactionFile(file) {
