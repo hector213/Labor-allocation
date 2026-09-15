@@ -448,7 +448,12 @@ const FUNCTIONS = {
   // New: Inbound. defaultUPH below is a placeholder like Consolidation's was — correct it in
   // Admin > Stations once enough import history builds up a real average for Tran Types 151/212.
   INBOUND_RECEIVER:    { name: "Inbound Receiver",        tranType: "151", defaultUPH: 50,  type: "bucket", defaultCapacity: 6 },
-  INBOUND_PUTAWAY:     { name: "Inbound Putaway",         tranType: "212", defaultUPH: 50,  type: "bucket", defaultCapacity: 6 }
+  INBOUND_PUTAWAY:     { name: "Inbound Putaway",         tranType: "212", defaultUPH: 50,  type: "bucket", defaultCapacity: 6 },
+  // WOS Pick shares Tran Type 301 with OP/MOD/Walkie Pick (same limitation the README already
+  // notes for those three — scan data alone can't tell them apart) and WOS Pack shares 315 with
+  // Small/Large Pack, so its units also flow into the "Pack-out so far" stat automatically.
+  WOS_PICK:            { name: "WOS Pick",                 tranType: "301", defaultUPH: 50,  type: "bucket", defaultCapacity: 6 },
+  WOS_PACK:            { name: "WOS Pack",                 tranType: "315", defaultUPH: 50,  type: "bucket", defaultCapacity: 6 }
 };
 
 /* Default calc settings (overridden by /settings/appSettings once saved) */
@@ -458,10 +463,11 @@ let appSettings = { avgUphWindowShifts: 15, trendRecentDays: 14, trendPriorDays:
    "column" pins a zone to a specific column in the 4-column floor grid so Replen/Consolidation
    land directly under OP Pick / MOD Pick rather than wherever they'd fall in source order. */
 const ZONES = [
-  { label: "Pack Zone",              functions: ["SMALL_PACK", "LARGE_PACK"],                     column: 1 },
+  { label: "Pack Zone",              functions: ["SMALL_PACK", "LARGE_PACK", "WOS_PACK"],          column: 1 },
   { label: "OP Pick Zone",           functions: ["OP_PICK"],                                       column: 2 },
   { label: "MOD Pick Zone",          functions: ["MOD_PICK"],                                      column: 3 },
   { label: "Walkie Pick Zone",       functions: ["WALKIE_PICK"],                                   column: 4 },
+  { label: "WOS Pick Zone",          functions: ["WOS_PICK"],                                      column: 5 },
   { label: "Replen Zone",            functions: ["REPLEN_PICK", "REPLEN_PUT"],                     column: 2 },
   { label: "Consolidation",          functions: ["LARGE_CONSOLIDATION", "SMALL_CONSOLIDATION"],    column: 3 },
   { label: "Inbound Zone",           functions: ["INBOUND_RECEIVER", "INBOUND_PUTAWAY"],           column: 4 }
