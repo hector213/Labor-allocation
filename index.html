@@ -319,7 +319,10 @@
           Pick an associate and a function above. Ideal is that function's Target UPH (Admin &gt;
           Stations) spread across production minutes only, same break/lunch handling as the Pick
           &amp; Pack Trend tab, scaled so a full nominal shift equals Settings &gt; Production hours
-          per shift (9.16h) rather than 10.5h minus just the 3 named breaks. Scan data can't tell
+          per shift (9.16h) rather than 10.5h minus just the 3 named breaks. It holds flat at that
+          nominal-shift total unless this associate's own data shows units still landing past the
+          normal end &mdash; then it keeps accruing through the extra hour, same auto-detect as the
+          Pick &amp; Pack Trend tab, just per associate instead of team-wide. Scan data can't tell
           apart functions that share a Tran Type (OP/MOD/Walkie/WOS Pick all post as 301; Small/
           Large/WOS Pack all post as 315) &mdash; picking any one of those shows that associate's
           combined activity across all of them for that Tran Type.
@@ -655,7 +658,14 @@ function shiftBucketList() {
   const count = Math.round(totalHours / 0.5);
   const buckets = [];
   for (let i = 0; i < count; i++) {
-    const hh = (start + i * 0.5) % 24;
+    // Label each bucket by the clock time at the END of its half-hour interval, not the start —
+    // renderTrendChart()/renderAssocTrendChart() plot bucket i's CUMULATIVE total as of the end
+    // of that interval (i.e. after that half-hour's units are added in), so the label needs to
+    // match that same "through this time" reading. Labeling by the start time instead (the old
+    // behavior) put every point's label 30 minutes EARLIER than the value it was showing — e.g.
+    // the point labeled "3:30 AM" was actually the cumulative through 4:00 AM, which is why an
+    // ideal-target reading "at 3:30 AM" looked too high by about a bucket's worth of pace.
+    const hh = (start + (i + 1) * 0.5) % 24;
     const h24 = Math.floor(hh);
     const min = Math.round((hh % 1) * 60);
     const ampm = h24 < 12 ? "AM" : "PM";
@@ -1404,16 +1414,26 @@ function renderAssocTrendChart() {
     assocTrendDoc.buckets.forEach((b, i) => { if (i < bucketUnits.length) bucketUnits[i] = b.units || 0; });
   }
 
-  // Ideal here is a rate target, not a fixed daily total, so unlike the team Shift Trend tab
-  // there's no "auto-detect the extra hour" step needed — it just keeps accruing at targetUph
-  // for as long as the shift (and displayed window) runs.
+  // Ideal here is a rate target rather than a fixed daily total, but it should still stop
+  // accruing at the end of the NOMINAL shift for an associate who didn't work the extra grace
+  // hour — same auto-detect as the team Shift Trend tab: if this associate has actual units
+  // posted in a bucket past the nominal end, they ran into that hour today, so the target line
+  // keeps accruing at the same rate through it; otherwise it holds flat at the nominal-shift
+  // total instead of implying they should keep producing during an hour they didn't work.
   const breaks = shiftBreakOffsetsMinutes();
+  const nominalWindowMin = appSettings.shiftLengthHours * 60;
+  const nominalEndBucketIdx = Math.floor(nominalWindowMin / 30);
+  const ranIntoGraceHour = bucketUnits.slice(nominalEndBucketIdx).some(u => u > 0);
+  const fullWindowMin = buckets.length * 30;
+  const effectiveWindowMin = ranIntoGraceHour ? fullWindowMin : Math.min(nominalWindowMin, fullWindowMin);
+
   const actualCum = [], idealCum = [];
   let running = 0;
   buckets.forEach((b, i) => {
     running += bucketUnits[i];
     actualCum.push(running);
-    const prodMinSoFar = productionMinutesElapsed((i + 1) * 30, breaks);
+    const elapsedMin = Math.min((i + 1) * 30, effectiveWindowMin);
+    const prodMinSoFar = productionMinutesElapsed(elapsedMin, breaks);
     idealCum.push(Math.round(targetUph * (prodMinSoFar / 60)));
   });
 
