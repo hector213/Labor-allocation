@@ -69,6 +69,12 @@
   .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 10px;}
   #trend-panel{margin-top:16px;}
   .trend-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;}
+  .trend-title-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .pace-badge{display:inline-block;padding:3px 12px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;}
+  .pace-badge.ahead{background:var(--ok-bg);color:var(--ok);}
+  .pace-badge.on{background:#e4ecfd;color:var(--accent-dark);}
+  .pace-badge.behind{background:var(--bad-bg);color:var(--bad);}
+  .pace-badge.none{background:var(--bucket-bg);color:var(--muted);}
   .trend-toggle{display:flex;gap:6px;}
   .trend-toggle-btn{background:#fff;border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;}
   .trend-toggle-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
@@ -191,6 +197,7 @@
     <nav>
       <button id="nav-board" class="active">Board</button>
       <button id="nav-trend">Pick &amp; Pack Trend</button>
+      <button id="nav-assoc-trend">Associate UPH</button>
       <button id="nav-admin">Admin</button>
     </nav>
     <div>
@@ -244,7 +251,10 @@
     <section id="trend-view" class="hidden">
       <div class="panel" id="trend-panel">
         <div class="trend-header">
-          <h2 style="margin:0;">Shift Trend &mdash; Actual vs Ideal Target</h2>
+          <div class="trend-title-row">
+            <h2 style="margin:0;">Shift Trend &mdash; Actual vs Ideal Target</h2>
+            <span class="pace-badge" id="trend-pace-badge">On Pace</span>
+          </div>
           <div class="trend-toggle">
             <button type="button" class="trend-toggle-btn active" data-trend-tran="315">Pack</button>
             <button type="button" class="trend-toggle-btn" data-trend-tran="301">Pick</button>
@@ -264,6 +274,51 @@
           Packing_Trend sheet's schedule. It targets 100% at the end of the normal shift length;
           if today's import shows units still coming in during the extra hour, it automatically
           stretches the target window to match instead of assuming every day runs long.
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- ASSOCIATE UPH VIEW ---------- -->
+    <!-- Same Actual vs Ideal Target cumulative-line idea as the Shift Trend tab, scoped to one
+         associate + one function. Ideal here is a UPH RATE target (the function's Target UPH,
+         Admin > Stations), not a fixed daily unit goal, since there's no per-associate goal —
+         see renderAssocTrendChart(). -->
+    <section id="assoc-trend-view" class="hidden">
+      <div class="panel" id="assoc-trend-panel">
+        <div class="trend-header">
+          <div class="trend-title-row">
+            <h2 style="margin:0;">Associate UPH Trend</h2>
+            <span class="pace-badge none" id="assoc-trend-pace-badge">Select associate &amp; function</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="assoc-trend-associate">Associate</label>
+            <select id="assoc-trend-associate">
+              <option value="">Select an associate&hellip;</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="assoc-trend-function">Function</label>
+            <select id="assoc-trend-function">
+              <option value="">Select a function&hellip;</option>
+            </select>
+          </div>
+        </div>
+        <div class="trend-stats">
+          <div class="shift-stat">Actual so far <b id="assoc-trend-actual">0</b></div>
+          <div class="shift-stat">Ideal (Target UPH) so far <b id="assoc-trend-ideal">0</b></div>
+          <div class="shift-stat">Variance <b id="assoc-trend-variance">0</b></div>
+          <div class="shift-stat">Actual UPH (live) <b id="assoc-trend-avg-uph">0.0</b></div>
+          <div class="shift-stat">Target UPH <b id="assoc-trend-target-uph">0</b></div>
+        </div>
+        <canvas id="assoc-trend-chart" height="90"></canvas>
+        <div class="note" id="assoc-trend-note" style="margin-top:10px;">
+          Pick an associate and a function above. Ideal is that function's Target UPH (Admin &gt;
+          Stations) spread across production minutes only, same break/lunch handling as the Pick
+          &amp; Pack Trend tab. Scan data can't tell apart functions that share a Tran Type (OP/MOD/
+          Walkie/WOS Pick all post as 301; Small/Large/WOS Pack all post as 315) &mdash; picking any
+          one of those shows that associate's combined activity across all of them for that Tran Type.
         </div>
       </div>
     </section>
@@ -539,6 +594,9 @@ let unsubTrend = null;
 let shiftTrendDocs = {}; // tranType ("315"/"301") -> {buckets: [{label, units}]}
 let selectedTrendTran = "315";
 let trendChartInstance = null;
+let unsubAssocTrend = null;
+let assocTrendDoc = null;   // currently subscribed {buckets: [{label, units}]}, or null
+let assocTrendChartInstance = null;
 
 /* ======================================================================
    SHIFT DATE / WINDOW HELPERS
@@ -642,13 +700,16 @@ auth.onAuthStateChanged(user => {
    ====================================================================== */
 document.getElementById("nav-board").addEventListener("click", () => showView("board"));
 document.getElementById("nav-trend").addEventListener("click", () => showView("trend"));
+document.getElementById("nav-assoc-trend").addEventListener("click", () => showView("assoc-trend"));
 document.getElementById("nav-admin").addEventListener("click", () => showView("admin"));
 function showView(v) {
   document.getElementById("board-view").classList.toggle("hidden", v !== "board");
   document.getElementById("trend-view").classList.toggle("hidden", v !== "trend");
+  document.getElementById("assoc-trend-view").classList.toggle("hidden", v !== "assoc-trend");
   document.getElementById("admin-view").classList.toggle("hidden", v !== "admin");
   document.getElementById("nav-board").classList.toggle("active", v === "board");
   document.getElementById("nav-trend").classList.toggle("active", v === "trend");
+  document.getElementById("nav-assoc-trend").classList.toggle("active", v === "assoc-trend");
   document.getElementById("nav-admin").classList.toggle("active", v === "admin");
   if (v === "trend") {
     // The chart canvas was inside a display:none section until now, so Chart.js may have
@@ -657,6 +718,12 @@ function showView(v) {
     renderTrendChart();
     if (trendChartInstance) {
       requestAnimationFrame(() => trendChartInstance.resize());
+    }
+  }
+  if (v === "assoc-trend") {
+    renderAssocTrendChart();
+    if (assocTrendChartInstance) {
+      requestAnimationFrame(() => assocTrendChartInstance.resize());
     }
   }
 }
@@ -696,6 +763,7 @@ function startListeners() {
     associates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderAssociatesAdmin();
     renderBoard();
+    populateAssocTrendAssociateDropdown();
   });
 
   // Keep last ~4 months of UPH history in memory; all averaging/trend math done client-side.
@@ -712,6 +780,8 @@ function startListeners() {
   watchShift(currentShiftDate);
 
   populateFunctionDropdown();
+  populateAssocTrendFunctionDropdown();
+  populateAssocTrendAssociateDropdown();
 }
 
 function watchShift(shiftDate) {
@@ -735,6 +805,7 @@ function watchShift(shiftDate) {
     snap.docs.forEach(d => { shiftTrendDocs[d.data().tranType] = d.data(); });
     renderTrendChart();
   });
+  watchAssocTrend();
 }
 
 document.getElementById("shift-date").addEventListener("change", e => watchShift(e.target.value));
@@ -1163,13 +1234,28 @@ function renderTrendChart() {
   document.getElementById("trend-actual").textContent = Math.round(actualSoFar);
   document.getElementById("trend-ideal").textContent = dailyTarget > 0 ? Math.round(idealSoFar) : "— (no goal set)";
   const varEl = document.getElementById("trend-variance");
+  const badgeEl = document.getElementById("trend-pace-badge");
   if (dailyTarget > 0) {
     const diff = actualSoFar - idealSoFar;
     varEl.textContent = (diff >= 0 ? "+" : "") + Math.round(diff);
     varEl.className = diff >= 0 ? "pos" : "neg";
+
+    // On Pace / Ahead / Behind badge: within 5% of the ideal-so-far counts as "on pace" rather
+    // than flagging every minor blip as ahead or behind.
+    if (badgeEl) {
+      const band = 0.05;
+      const pctDiff = idealSoFar > 0 ? diff / idealSoFar : (diff > 0 ? band + 1 : 0);
+      let state, label;
+      if (pctDiff > band) { state = "ahead"; label = "Ahead of Pace"; }
+      else if (pctDiff < -band) { state = "behind"; label = "Behind Pace"; }
+      else { state = "on"; label = "On Pace"; }
+      badgeEl.textContent = label;
+      badgeEl.className = "pace-badge " + state;
+    }
   } else {
     varEl.textContent = "—";
     varEl.className = "";
+    if (badgeEl) { badgeEl.textContent = "No goal set"; badgeEl.className = "pace-badge none"; }
   }
 
   // Team avg UPH (live): actual units so far / production hours elapsed since shift start.
@@ -1194,6 +1280,168 @@ function renderTrendChart() {
     trendChartInstance.update();
   } else {
     trendChartInstance = new Chart(canvas, {
+      type: "line",
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { position: "bottom" } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  }
+}
+
+/* ======================================================================
+   ASSOCIATE UPH TREND — same Actual vs Ideal Target cumulative-line idea as the Shift Trend
+   tab above, scoped to one associate + one function. The Ideal line here is a UPH RATE target
+   (that function's Target UPH from Admin > Stations) spread across production minutes, rather
+   than a fixed daily unit goal, since there's no per-associate daily goal the way there's a
+   Combined goal for the team. Reads per-associate bucket docs from the `assocTrend` collection
+   (doc id `${shiftDate}_${associateId}_${tranType}`), written at import time alongside the
+   team-level `shiftTrend` docs — see buildAssocTrendBuckets() near the import pipeline below.
+   ====================================================================== */
+function populateAssocTrendFunctionDropdown() {
+  const sel = document.getElementById("assoc-trend-function");
+  const prevValue = sel.value;
+  sel.innerHTML = '<option value="">Select a function&hellip;</option>';
+  Object.entries(FUNCTIONS).forEach(([key, fn]) => {
+    const opt = document.createElement("option");
+    opt.value = key; opt.textContent = fn.name;
+    sel.appendChild(opt);
+  });
+  if (prevValue) sel.value = prevValue;
+}
+
+function populateAssocTrendAssociateDropdown() {
+  const sel = document.getElementById("assoc-trend-associate");
+  const prevValue = sel.value;
+  sel.innerHTML = '<option value="">Select an associate&hellip;</option>';
+  associates.filter(a => a.active !== false).forEach(a => {
+    const opt = document.createElement("option");
+    opt.value = a.id; opt.textContent = a.name;
+    sel.appendChild(opt);
+  });
+  if (prevValue && associates.some(a => a.id === prevValue)) sel.value = prevValue;
+}
+
+document.getElementById("assoc-trend-associate").addEventListener("change", () => watchAssocTrend());
+document.getElementById("assoc-trend-function").addEventListener("change", () => watchAssocTrend());
+
+// Re-subscribes to the one assocTrend doc for the current shift date + selected associate +
+// selected function's Tran Type (docs are keyed by Tran Type, not function key — see the note
+// on the panel about functions that share a Tran Type). No-ops (and clears the chart) until
+// both an associate and a function are picked.
+function watchAssocTrend() {
+  if (unsubAssocTrend) { unsubAssocTrend(); unsubAssocTrend = null; }
+  const associateId = document.getElementById("assoc-trend-associate").value;
+  const functionKey = document.getElementById("assoc-trend-function").value;
+  assocTrendDoc = null;
+  if (!associateId || !functionKey) { renderAssocTrendChart(); return; }
+  const fn = FUNCTIONS[functionKey];
+  const docId = `${currentShiftDate}_${associateId}_${fn.tranType}`;
+  unsubAssocTrend = db.collection("assocTrend").doc(docId).onSnapshot(snap => {
+    assocTrendDoc = snap.exists ? snap.data() : null;
+    renderAssocTrendChart();
+  });
+}
+
+function renderAssocTrendChart() {
+  const canvas = document.getElementById("assoc-trend-chart");
+  if (!canvas) return; // not rendered yet
+  const badgeEl = document.getElementById("assoc-trend-pace-badge");
+  const associateId = document.getElementById("assoc-trend-associate").value;
+  const functionKey = document.getElementById("assoc-trend-function").value;
+
+  if (!associateId || !functionKey) {
+    document.getElementById("assoc-trend-actual").textContent = "0";
+    document.getElementById("assoc-trend-ideal").textContent = "0";
+    document.getElementById("assoc-trend-variance").textContent = "0";
+    document.getElementById("assoc-trend-avg-uph").textContent = "0.0";
+    document.getElementById("assoc-trend-target-uph").textContent = "0";
+    if (badgeEl) { badgeEl.textContent = "Select associate & function"; badgeEl.className = "pace-badge none"; }
+    if (assocTrendChartInstance) { assocTrendChartInstance.destroy(); assocTrendChartInstance = null; }
+    return;
+  }
+  if (typeof Chart === "undefined") {
+    const note = document.getElementById("assoc-trend-note");
+    if (note) note.textContent = "Chart.js failed to load from the CDN, so the trend chart can't render. Check your internet connection or an ad blocker, then hard-refresh.";
+    return;
+  }
+
+  const fn = FUNCTIONS[functionKey];
+  const station = stations.find(st => st.functionKey === functionKey);
+  const targetUph = (station && station.setUPH) || fn.defaultUPH;
+  document.getElementById("assoc-trend-target-uph").textContent = targetUph;
+
+  const buckets = shiftBucketList();
+  const bucketUnits = buckets.map(() => 0);
+  if (assocTrendDoc && Array.isArray(assocTrendDoc.buckets)) {
+    assocTrendDoc.buckets.forEach((b, i) => { if (i < bucketUnits.length) bucketUnits[i] = b.units || 0; });
+  }
+
+  // Ideal here is a rate target, not a fixed daily total, so unlike the team Shift Trend tab
+  // there's no "auto-detect the extra hour" step needed — it just keeps accruing at targetUph
+  // for as long as the shift (and displayed window) runs.
+  const breaks = shiftBreakOffsetsMinutes();
+  const actualCum = [], idealCum = [];
+  let running = 0;
+  buckets.forEach((b, i) => {
+    running += bucketUnits[i];
+    actualCum.push(running);
+    const prodMinSoFar = productionMinutesElapsed((i + 1) * 30, breaks);
+    idealCum.push(Math.round(targetUph * (prodMinSoFar / 60)));
+  });
+
+  const now = new Date();
+  const hh = now.getHours() + now.getMinutes() / 60;
+  let soFarIdx = bucketIndexForHour(hh, buckets);
+  if (soFarIdx === -1) soFarIdx = buckets.length - 1;
+  const actualSoFar = actualCum[soFarIdx] || 0;
+  const idealSoFar = idealCum[soFarIdx] || 0;
+
+  document.getElementById("assoc-trend-actual").textContent = Math.round(actualSoFar);
+  document.getElementById("assoc-trend-ideal").textContent = Math.round(idealSoFar);
+  const varEl = document.getElementById("assoc-trend-variance");
+  const diff = actualSoFar - idealSoFar;
+  varEl.textContent = (diff >= 0 ? "+" : "") + Math.round(diff);
+  varEl.className = diff >= 0 ? "pos" : "neg";
+
+  if (badgeEl) {
+    const band = 0.05;
+    const pctDiff = idealSoFar > 0 ? diff / idealSoFar : (diff > 0 ? band + 1 : 0);
+    let state, label;
+    if (pctDiff > band) { state = "ahead"; label = "Ahead of Pace"; }
+    else if (pctDiff < -band) { state = "behind"; label = "Behind Pace"; }
+    else { state = "on"; label = "On Pace"; }
+    badgeEl.textContent = label;
+    badgeEl.className = "pace-badge " + state;
+  }
+
+  // Actual UPH (live): actual units so far / production hours elapsed since shift start.
+  let shiftStart = new Date(currentShiftDate + "T00:00:00");
+  shiftStart.setHours(Math.floor(appSettings.shiftStartHour), (appSettings.shiftStartHour % 1) * 60, 0, 0);
+  let elapsedMs = now - shiftStart;
+  if (elapsedMs < 0) elapsedMs += 24 * 3600000;
+  const elapsedMinRaw = Math.min(elapsedMs / 60000, buckets.length * 30);
+  const elapsedProdHours = productionMinutesElapsed(elapsedMinRaw, breaks) / 60;
+  const avgUphLive = elapsedProdHours > 0 ? actualSoFar / elapsedProdHours : 0;
+  document.getElementById("assoc-trend-avg-uph").textContent = avgUphLive.toFixed(1);
+
+  const labels = buckets.map(b => b.label);
+  const associate = associates.find(a => a.id === associateId);
+  const datasets = [
+    { label: `${associate ? associate.name : "Associate"} Actual Cumulative`, data: actualCum, borderColor: "#2f6fed", backgroundColor: "transparent", tension: 0.15, pointRadius: 2 },
+    { label: "Ideal Target Cumulative", data: idealCum, borderColor: "#9aa4b2", borderDash: [6, 4], backgroundColor: "transparent", tension: 0, pointRadius: 0 }
+  ];
+  if (assocTrendChartInstance) {
+    assocTrendChartInstance.data.labels = labels;
+    assocTrendChartInstance.data.datasets[0].label = datasets[0].label;
+    assocTrendChartInstance.data.datasets[0].data = actualCum;
+    assocTrendChartInstance.data.datasets[1].data = idealCum;
+    assocTrendChartInstance.update();
+  } else {
+    assocTrendChartInstance = new Chart(canvas, {
       type: "line",
       data: { labels, datasets },
       options: {
@@ -1768,6 +2016,13 @@ document.getElementById("ai-fab").addEventListener("click", () => {
    ====================================================================== */
 let pendingImportRows = null;
 let pendingTrendBuckets = null; // { "shiftDate|tranType": [units, units, ...] } for the Shift Trend chart
+let pendingAssocTrendBuckets = null; // { "shiftDate|associateId|tranType": [units, units, ...] } for Associate UPH Trend
+
+function associateIdByEmployeeIdMap() {
+  const m = {};
+  associates.forEach(a => { m[a.employeeId] = a.id; });
+  return m;
+}
 
 // Sums cleaned (deduped) rows into the same 30-min buckets the Shift Trend chart reads, for
 // just the two Tran Types the chart cares about (315 Pack, 301 Pick) — everything else is
@@ -1787,6 +2042,27 @@ function buildTrendBuckets(cleaned) {
   return out;
 }
 
+// Same idea as buildTrendBuckets, but split out per associate too (not just per Tran Type) and
+// covering every Tran Type, not just 315/301 — the Associate UPH Trend tab needs bucketed
+// history for whichever function is picked, and any of the 13 can be selected. Rows for an
+// Employee Id with no matching Associates record are skipped here the same way they're skipped
+// (and logged) in aggregateToUPH.
+function buildAssocTrendBuckets(cleaned, associateByEmployeeId) {
+  const buckets = shiftBucketList();
+  const out = {};
+  cleaned.forEach(r => {
+    const associateId = associateByEmployeeId[r.empId];
+    if (!associateId) return;
+    const hh = r.dateTime.getHours() + r.dateTime.getMinutes() / 60;
+    const idx = bucketIndexForHour(hh, buckets);
+    if (idx === -1) return;
+    const key = `${r.shiftDate}|${associateId}|${r.tranType}`;
+    if (!out[key]) out[key] = buckets.map(() => 0);
+    out[key][idx] += r.qty;
+  });
+  return out;
+}
+
 document.getElementById("import-btn").addEventListener("click", async () => {
   const file = document.getElementById("import-file").files[0];
   const log = document.getElementById("import-log");
@@ -1798,6 +2074,7 @@ document.getElementById("import-btn").addEventListener("click", async () => {
     const grouped = aggregateToUPH(cleaned, log);
     pendingImportRows = grouped;
     pendingTrendBuckets = buildTrendBuckets(cleaned);
+    pendingAssocTrendBuckets = buildAssocTrendBuckets(cleaned, associateIdByEmployeeIdMap());
     document.getElementById("commit-btn").classList.remove("hidden");
     log.textContent += `\nReady to write ${grouped.length} UPH record(s). Click "Write to History" to commit.`;
   } catch (err) {
@@ -1808,29 +2085,45 @@ document.getElementById("import-btn").addEventListener("click", async () => {
 document.getElementById("commit-btn").addEventListener("click", async () => {
   const log = document.getElementById("import-log");
   if (!pendingImportRows || !pendingImportRows.length) return;
-  const batch = db.batch();
+
+  // Firestore batches cap at 500 writes. uphHistory alone rarely gets close, but adding one
+  // assocTrend doc per associate/function combo can push a big day's total import over that —
+  // so writes are queued here and flushed in chunks rather than assumed to fit one batch.
+  const bucketLabels = shiftBucketList().map(b => b.label);
+  const writes = [];
   pendingImportRows.forEach(r => {
     const expire = new Date(r.shiftDate);
     expire.setMonth(expire.getMonth() + 4);
     const id = `${r.associateId}_${r.tranType}_${r.shiftDate}`;
-    batch.set(db.collection("uphHistory").doc(id), {
+    writes.push([db.collection("uphHistory").doc(id), {
       associateId: r.associateId, tranType: r.tranType, shiftDate: r.shiftDate,
       units: r.units, minutes: r.minutes, uph: r.uph, reliable: r.reliable,
       expireAt: firebase.firestore.Timestamp.fromDate(expire)
-    });
+    }]);
   });
-  const bucketLabels = shiftBucketList().map(b => b.label);
   Object.entries(pendingTrendBuckets || {}).forEach(([key, unitsArr]) => {
     const [shiftDate, tranType] = key.split("|");
-    batch.set(db.collection("shiftTrend").doc(`${shiftDate}_${tranType}`), {
+    writes.push([db.collection("shiftTrend").doc(`${shiftDate}_${tranType}`), {
       shiftDate, tranType,
       buckets: unitsArr.map((units, i) => ({ label: bucketLabels[i], units }))
-    });
+    }]);
   });
-  await batch.commit();
-  log.textContent += `\nWrote ${pendingImportRows.length} record(s) to uphHistory and ${Object.keys(pendingTrendBuckets || {}).length} Shift Trend bucket set(s).`;
+  Object.entries(pendingAssocTrendBuckets || {}).forEach(([key, unitsArr]) => {
+    const [shiftDate, associateId, tranType] = key.split("|");
+    writes.push([db.collection("assocTrend").doc(`${shiftDate}_${associateId}_${tranType}`), {
+      shiftDate, associateId, tranType,
+      buckets: unitsArr.map((units, i) => ({ label: bucketLabels[i], units }))
+    }]);
+  });
+  for (let i = 0; i < writes.length; i += 450) {
+    const batch = db.batch();
+    writes.slice(i, i + 450).forEach(([ref, data]) => batch.set(ref, data));
+    await batch.commit();
+  }
+  log.textContent += `\nWrote ${pendingImportRows.length} record(s) to uphHistory, ${Object.keys(pendingTrendBuckets || {}).length} Shift Trend bucket set(s), and ${Object.keys(pendingAssocTrendBuckets || {}).length} Associate UPH Trend bucket set(s).`;
   pendingImportRows = null;
   pendingTrendBuckets = null;
+  pendingAssocTrendBuckets = null;
   document.getElementById("commit-btn").classList.add("hidden");
 });
 
@@ -1838,18 +2131,24 @@ document.getElementById("clear-shiftdate-btn").addEventListener("click", async (
   const log = document.getElementById("clear-shiftdate-log");
   const shiftDate = document.getElementById("clear-shiftdate").value;
   if (!shiftDate) { log.textContent = "Pick a date first."; return; }
-  if (!confirm(`Delete ALL uphHistory and Shift Trend records for ${shiftDate}? This can't be undone.`)) return;
+  if (!confirm(`Delete ALL uphHistory, Shift Trend, and Associate UPH Trend records for ${shiftDate}? This can't be undone.`)) return;
   log.textContent = "Deleting...";
-  const [uphSnap, trendSnap] = await Promise.all([
+  const [uphSnap, trendSnap, assocTrendSnap] = await Promise.all([
     db.collection("uphHistory").where("shiftDate", "==", shiftDate).get(),
-    db.collection("shiftTrend").where("shiftDate", "==", shiftDate).get()
+    db.collection("shiftTrend").where("shiftDate", "==", shiftDate).get(),
+    db.collection("assocTrend").where("shiftDate", "==", shiftDate).get()
   ]);
-  if (uphSnap.empty && trendSnap.empty) { log.textContent = `No records found for ${shiftDate}.`; return; }
-  const batch = db.batch();
-  uphSnap.forEach(doc => batch.delete(doc.ref));
-  trendSnap.forEach(doc => batch.delete(doc.ref));
-  await batch.commit();
-  log.textContent = `Deleted ${uphSnap.size} uphHistory record(s) and ${trendSnap.size} Shift Trend record(s) for ${shiftDate}.`;
+  if (uphSnap.empty && trendSnap.empty && assocTrendSnap.empty) { log.textContent = `No records found for ${shiftDate}.`; return; }
+  // Firestore batches cap at 500 writes — a busy day's per-associate deletes can exceed that, so
+  // chunk into multiple batches instead of assuming everything fits in one (uphHistory + Shift
+  // Trend alone have never come close, but Associate UPH Trend can with enough associates/functions).
+  const allDocs = [...uphSnap.docs, ...trendSnap.docs, ...assocTrendSnap.docs];
+  for (let i = 0; i < allDocs.length; i += 450) {
+    const batch = db.batch();
+    allDocs.slice(i, i + 450).forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+  }
+  log.textContent = `Deleted ${uphSnap.size} uphHistory record(s), ${trendSnap.size} Shift Trend record(s), and ${assocTrendSnap.size} Associate UPH Trend record(s) for ${shiftDate}.`;
 });
 
 function parseTransactionFile(file) {
