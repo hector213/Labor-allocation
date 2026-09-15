@@ -64,11 +64,17 @@
   #board-grid{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start;}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;}
   .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 10px;}
+  /* Pool panel sticks in place while the Floor Grid (usually taller) scrolls past it, and the
+     list itself scrolls internally once it's too long for the viewport, instead of stretching
+     the whole page. */
+  #pool-panel{position:sticky;top:12px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;}
+  #pool-search{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:6px;font-size:13px;margin-bottom:10px;box-sizing:border-box;}
+  #pool-empty-note{font-size:12px;color:var(--muted);padding:6px 2px;}
 
   .role-group{margin-bottom:14px;}
   .role-group:last-child{margin-bottom:0;}
   .role-group h3{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:0 0 6px;display:flex;justify-content:space-between;}
-  #pool-list{min-height:60px;}
+  #pool-list{min-height:60px;overflow-y:auto;flex:1;}
   .assoc-card{display:flex;align-items:center;gap:8px;background:#fbfcfe;border:1px solid var(--border);border-radius:8px;padding:6px 8px;margin-bottom:6px;cursor:grab;font-size:13px;}
   .assoc-card:active{cursor:grabbing;}
   .avatar{width:30px;height:30px;min-width:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;box-shadow:0 0 0 2px #fff, 0 0 0 3px var(--ring-color,transparent);}
@@ -200,9 +206,11 @@
       </div>
 
       <div id="board-grid">
-        <div class="panel">
+        <div class="panel" id="pool-panel">
           <h2>Associate Talent Pool</h2>
+          <input id="pool-search" type="text" placeholder="Search name or Employee Id&hellip;">
           <div id="pool-list"></div>
+          <div id="pool-empty-note" class="hidden">No one matches "<span id="pool-empty-term"></span>".</div>
         </div>
         <div class="panel">
           <h2>Floor Grid</h2>
@@ -438,6 +446,7 @@ const PACKOUT_TRAN_TYPE = "315";
    ====================================================================== */
 let stations = [];       // {id, name, functionKey, tranType, setUPH, type, order}
 let associates = [];     // {id, employeeId, name, associateCode, active}
+let poolSearchTerm = ""; // live filter for the Associate Talent Pool search box
 let uphHistory = [];     // {id, associateId, tranType, shiftDate, units, minutes, uph}
 let segments = [];       // active shift's segments: {id, associateId, stationId, functionKey, startTime, endTime, hoursInFunction}
 let shiftGoalsToday = []; // {id, functionKey, targetUnits, plannedHours}
@@ -675,7 +684,13 @@ function renderBoard() {
   // Cross-trained associates are listed under EVERY role they're trained in, so
   // "who could I move to X" is answerable at a glance from any group.
   const assignedIds = new Set(segments.filter(s => !s.endTime).map(s => s.associateId));
-  const pool = associates.filter(a => a.active !== false && !a.automated && !assignedIds.has(a.id));
+  let pool = associates.filter(a => a.active !== false && !a.automated && !assignedIds.has(a.id));
+  // Search box filters by name or Employee Id — case-insensitive, matches anywhere in either.
+  const term = poolSearchTerm.trim().toLowerCase();
+  if (term) {
+    pool = pool.filter(a =>
+      (a.name || "").toLowerCase().includes(term) || (a.employeeId || "").toLowerCase().includes(term));
+  }
   const poolEl = document.getElementById("pool-list");
   poolEl.innerHTML = "";
 
@@ -696,6 +711,8 @@ function renderBoard() {
     groups[key].forEach(a => dropTarget.appendChild(associateCard(a, key || null)));
     poolEl.appendChild(block);
   });
+  document.getElementById("pool-empty-note").classList.toggle("hidden", !(term && pool.length === 0));
+  document.getElementById("pool-empty-term").textContent = poolSearchTerm.trim();
   // poolEl is a persistent DOM node (fetched once via getElementById), not recreated each
   // render like the per-station dropZone divs are — so wiring it fresh on every renderBoard()
   // call (which fires on every Firestore snapshot: segments, stations, associates, goals,
@@ -1000,6 +1017,13 @@ document.getElementById("clear-assignments-btn").addEventListener("click", async
   const segRef = db.collection("assignments").doc(currentShiftDate).collection("segments");
   openSegs.forEach(seg => batch.update(segRef.doc(seg.id), { endTime: now }));
   await batch.commit();
+});
+
+// Talent Pool search — just re-renders the board from already-loaded local state (no Firestore
+// round-trip), so it's cheap to fire on every keystroke.
+document.getElementById("pool-search").addEventListener("input", e => {
+  poolSearchTerm = e.target.value;
+  renderBoard();
 });
 
 /* ======================================================================
