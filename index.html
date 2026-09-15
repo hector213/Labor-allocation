@@ -271,9 +271,11 @@
           Ideal target line is the Combined goal for this function group, spread across production
           minutes only &mdash; the 7:00 PM break (15 min), 10:30 PM lunch (30 min), and 1:45 AM
           break (15 min) are excluded, so the line holds flat through each one, matching the
-          Packing_Trend sheet's schedule. It targets 100% at the end of the normal shift length;
-          if today's import shows units still coming in during the extra hour, it automatically
-          stretches the target window to match instead of assuming every day runs long.
+          Packing_Trend sheet's schedule. The pace is also scaled so a full nominal shift equals
+          Settings &gt; Production hours per shift (9.16h), not just 10.5h minus those 3 breaks.
+          It targets 100% at the end of the normal shift length; if today's import shows units
+          still coming in during the extra hour, it automatically stretches the target window to
+          match instead of assuming every day runs long.
         </div>
       </div>
     </section>
@@ -316,9 +318,11 @@
         <div class="note" id="assoc-trend-note" style="margin-top:10px;">
           Pick an associate and a function above. Ideal is that function's Target UPH (Admin &gt;
           Stations) spread across production minutes only, same break/lunch handling as the Pick
-          &amp; Pack Trend tab. Scan data can't tell apart functions that share a Tran Type (OP/MOD/
-          Walkie/WOS Pick all post as 301; Small/Large/WOS Pack all post as 315) &mdash; picking any
-          one of those shows that associate's combined activity across all of them for that Tran Type.
+          &amp; Pack Trend tab, scaled so a full nominal shift equals Settings &gt; Production hours
+          per shift (9.16h) rather than 10.5h minus just the 3 named breaks. Scan data can't tell
+          apart functions that share a Tran Type (OP/MOD/Walkie/WOS Pick all post as 301; Small/
+          Large/WOS Pack all post as 315) &mdash; picking any one of those shows that associate's
+          combined activity across all of them for that Tran Type.
         </div>
       </div>
     </section>
@@ -1148,15 +1152,35 @@ function shiftBreakOffsetsMinutes() {
   });
 }
 
+// The 3 named breaks above only total 60 minutes, but a 10.5-hour shift (630 min) nets out to
+// Settings > "Production hours per shift" (9.16h = 549.6 min per appSettings.productionHoursPerShift)
+// once things like start/end cleanup are factored in too — a 20.4-minute gap the 3 clock-time
+// breaks alone don't cover. Rather than guess where that extra time falls, this scales the
+// production-minutes-elapsed curve so it still holds flat through each named break (visually
+// matching the schedule) but lands on exactly productionHoursPerShift by the end of the nominal
+// shift length, so the "9.16 production hours" the shift is actually run against, not just
+// "10.5 hours minus 3 known breaks," is what every Target-UPH-based calculation uses.
+function productionMinuteScaleFactor(breaks) {
+  const nominalWindowMin = appSettings.shiftLengthHours * 60;
+  let rawProdAtNominalEnd = nominalWindowMin;
+  breaks.forEach(b => {
+    const overlap = Math.max(0, Math.min(nominalWindowMin, b.endMin) - b.startMin);
+    rawProdAtNominalEnd -= overlap;
+  });
+  const desiredProdMin = (appSettings.productionHoursPerShift || 0) * 60;
+  return (rawProdAtNominalEnd > 0 && desiredProdMin > 0) ? desiredProdMin / rawProdAtNominalEnd : 1;
+}
+
 // Clock minutes elapsed since shift start, minus whatever portion of that span fell inside a
-// break/lunch window — i.e. "production minutes," matching the spreadsheet's schedule.
+// break/lunch window, then scaled to land on Settings > Production hours per shift by the end
+// of the nominal shift — i.e. "production minutes," matching the spreadsheet's schedule.
 function productionMinutesElapsed(elapsedMin, breaks) {
   let prod = elapsedMin;
   breaks.forEach(b => {
     const overlap = Math.max(0, Math.min(elapsedMin, b.endMin) - b.startMin);
     prod -= overlap;
   });
-  return Math.max(0, prod);
+  return Math.max(0, prod) * productionMinuteScaleFactor(breaks);
 }
 
 document.querySelectorAll(".trend-toggle-btn").forEach(btn => {
