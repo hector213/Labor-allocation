@@ -2115,10 +2115,18 @@ document.getElementById("commit-btn").addEventListener("click", async () => {
       buckets: unitsArr.map((units, i) => ({ label: bucketLabels[i], units }))
     }]);
   });
-  for (let i = 0; i < writes.length; i += 450) {
-    const batch = db.batch();
-    writes.slice(i, i + 450).forEach(([ref, data]) => batch.set(ref, data));
-    await batch.commit();
+  try {
+    for (let i = 0; i < writes.length; i += 450) {
+      const batch = db.batch();
+      writes.slice(i, i + 450).forEach(([ref, data]) => batch.set(ref, data));
+      await batch.commit();
+    }
+  } catch (err) {
+    // Without this, a rejected commit (e.g. Firestore rules not yet redeployed for a
+    // collection this import now writes to, like assocTrend) failed completely silently —
+    // the "Ready to write..." line just sat there forever with no error and no confirmation.
+    log.textContent += `\nERROR writing to Firestore: ${err.message}\nNothing after this point was written — if this mentions "permission" or "insufficient permissions", the firestore.rules file hasn't been redeployed in the Firebase console yet (Firestore → Rules tab → paste firestore.rules → Publish).`;
+    return;
   }
   log.textContent += `\nWrote ${pendingImportRows.length} record(s) to uphHistory, ${Object.keys(pendingTrendBuckets || {}).length} Shift Trend bucket set(s), and ${Object.keys(pendingAssocTrendBuckets || {}).length} Associate UPH Trend bucket set(s).`;
   pendingImportRows = null;
