@@ -17,7 +17,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <!-- Chart.js - draws the Shift Trend (Actual vs Ideal Target) line chart -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 
 <style>
   :root{
@@ -190,6 +190,7 @@
     <h1>LAS1 Labor Allocation</h1>
     <nav>
       <button id="nav-board" class="active">Board</button>
+      <button id="nav-trend">Pick &amp; Pack Trend</button>
       <button id="nav-admin">Admin</button>
     </nav>
     <div>
@@ -233,9 +234,14 @@
         </div>
       </div>
 
-      <!-- Shift Trend: Actual vs Ideal Target cumulative units across the shift, like the
-           Packing_Trend sheet in your Shift Cost Sheet workbook, with a toggle between Pack
-           (315) and Pick (301) instead of a separate sheet per function. See renderTrendChart(). -->
+    </section>
+    <button id="ai-fab" title="AI Recommendation — planned for Phase 3">✦</button>
+
+    <!-- ---------- SHIFT TREND VIEW ---------- -->
+    <!-- Shift Trend: Actual vs Ideal Target cumulative units across the shift, like the
+         Packing_Trend sheet in your Shift Cost Sheet workbook, with a toggle between Pack
+         (315) and Pick (301) instead of a separate sheet per function. See renderTrendChart(). -->
+    <section id="trend-view" class="hidden">
       <div class="panel" id="trend-panel">
         <div class="trend-header">
           <h2 style="margin:0;">Shift Trend &mdash; Actual vs Ideal Target</h2>
@@ -259,7 +265,6 @@
         </div>
       </div>
     </section>
-    <button id="ai-fab" title="AI Recommendation — planned for Phase 3">✦</button>
 
     <!-- ---------- ADMIN VIEW ---------- -->
     <section id="admin-view" class="hidden">
@@ -634,12 +639,24 @@ auth.onAuthStateChanged(user => {
    NAV
    ====================================================================== */
 document.getElementById("nav-board").addEventListener("click", () => showView("board"));
+document.getElementById("nav-trend").addEventListener("click", () => showView("trend"));
 document.getElementById("nav-admin").addEventListener("click", () => showView("admin"));
 function showView(v) {
   document.getElementById("board-view").classList.toggle("hidden", v !== "board");
+  document.getElementById("trend-view").classList.toggle("hidden", v !== "trend");
   document.getElementById("admin-view").classList.toggle("hidden", v !== "admin");
   document.getElementById("nav-board").classList.toggle("active", v === "board");
+  document.getElementById("nav-trend").classList.toggle("active", v === "trend");
   document.getElementById("nav-admin").classList.toggle("active", v === "admin");
+  if (v === "trend") {
+    // The chart canvas was inside a display:none section until now, so Chart.js may have
+    // sized it to 0x0 (or not drawn at all) if renderTrendChart() ran while it was hidden.
+    // Re-render on switching to this tab so it always has real dimensions to draw into.
+    renderTrendChart();
+    if (trendChartInstance) {
+      requestAnimationFrame(() => trendChartInstance.resize());
+    }
+  }
 }
 
 document.querySelectorAll(".admin-tab-btn").forEach(btn => {
@@ -1044,7 +1061,14 @@ document.querySelectorAll(".trend-toggle-btn").forEach(btn => {
 
 function renderTrendChart() {
   const canvas = document.getElementById("trend-chart");
-  if (!canvas || typeof Chart === "undefined") return; // not on the Board tab yet, or CDN still loading
+  if (!canvas) return; // not rendered yet
+  if (typeof Chart === "undefined") {
+    // Chart.js didn't load from the CDN (bad version pin, ad blocker, offline) — surface that
+    // instead of silently leaving the chart blank with no clue why.
+    const note = document.getElementById("trend-note");
+    if (note) note.textContent = "Chart.js failed to load from the CDN, so the trend chart can't render. Check your internet connection or an ad blocker, then hard-refresh.";
+    return;
+  }
 
   const buckets = shiftBucketList();
   const doc = shiftTrendDocs[selectedTrendTran];
