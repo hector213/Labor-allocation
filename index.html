@@ -349,6 +349,7 @@
           <div class="field"><label>Shift start (24h, e.g. 17 = 5 PM)</label><input type="number" id="set-shift-start"></div>
           <div class="field"><label>Core shift length (hours)</label><input type="number" step="0.25" id="set-shift-length"></div>
           <div class="field"><label>Extra-hour grace window (hours)</label><input type="number" step="0.25" id="set-shift-grace"></div>
+          <div class="field"><label>Total production hours (for split auto-balance)</label><input type="number" step="0.01" id="set-production-hours"></div>
           <button class="btn" id="save-settings-btn">Save settings</button>
         </div>
         <div class="note">
@@ -357,6 +358,13 @@
           4:30 AM) is only imported on nights that actually have Pack activity in it &mdash; auto-detected per
           night from the file, same idea as your sheet's "Extra Hour Running?" check, so a normal 3:30 AM
           cutoff night doesn't accidentally pull in the next shift's early scans.
+        </div>
+        <div class="note">
+          <b>Total production hours:</b> when someone is split across 2 functions (the "⑂ Split" button
+          on their occupant card), editing one function's hours auto-fills the other so the two add up
+          to this number &mdash; e.g. 4 hours in one function auto-sets the other to 5.16 if this is set
+          to 9.16. Only auto-balances when they're split into exactly 2 functions; with 3+ it leaves the
+          others alone since there's no single right way to split the remainder.
         </div>
       </div>
     </section>
@@ -440,7 +448,7 @@ const FUNCTIONS = {
 };
 
 /* Default calc settings (overridden by /settings/appSettings once saved) */
-let appSettings = { avgUphWindowShifts: 15, trendRecentDays: 14, trendPriorDays: 14, shiftStartHour: 17, shiftLengthHours: 10.5, shiftGraceHours: 1 };
+let appSettings = { avgUphWindowShifts: 15, trendRecentDays: 14, trendPriorDays: 14, shiftStartHour: 17, shiftLengthHours: 10.5, shiftGraceHours: 1, productionHoursPerShift: 9.16 };
 
 /* Zones — purely a visual grouping of stations on the Board (matches the floor-layout mockup).
    "column" pins a zone to a specific column in the 4-column floor grid so Replen/Consolidation
@@ -569,6 +577,7 @@ function startListeners() {
     document.getElementById("set-shift-start").value = appSettings.shiftStartHour;
     document.getElementById("set-shift-length").value = appSettings.shiftLengthHours;
     document.getElementById("set-shift-grace").value = appSettings.shiftGraceHours;
+    document.getElementById("set-production-hours").value = appSettings.productionHoursPerShift;
     renderBoard();
   });
 
@@ -955,8 +964,21 @@ function occupantRow(seg, a, uph, hrs, functionKey) {
     e.dataTransfer.setData("text/plain", JSON.stringify({ aid: seg.associateId, sid: seg.id }));
   });
   row.querySelector(".hrs").addEventListener("change", e => {
-    db.collection("assignments").doc(currentShiftDate).collection("segments").doc(seg.id)
-      .update({ hoursInFunction: parseFloat(e.target.value) || 0 });
+    const newHours = parseFloat(e.target.value) || 0;
+    const segRef = db.collection("assignments").doc(currentShiftDate).collection("segments");
+    segRef.doc(seg.id).update({ hoursInFunction: newHours });
+
+    // Auto-balance: if this associate is split into exactly 2 concurrent functions right now,
+    // the other one auto-fills so the two add up to appSettings.productionHoursPerShift — e.g.
+    // 4 hours here sets the other to 5.16 when that total is 9.16. Only kicks in for exactly 2;
+    // with 3+ concurrent functions there's no single right way to divide the remainder, so those
+    // are left for you to set by hand.
+    const others = segments.filter(s => s.associateId === seg.associateId && !s.endTime && s.id !== seg.id);
+    if (others.length === 1) {
+      const total = appSettings.productionHoursPerShift || 0;
+      const otherHours = Math.max(0, Math.round((total - newHours) * 100) / 100);
+      segRef.doc(others[0].id).update({ hoursInFunction: otherHours });
+    }
   });
   row.querySelector(".remove").addEventListener("click", () => closeSegment(seg));
   row.querySelector(".split").addEventListener("click", () => openSplitModal(seg.associateId));
@@ -1432,11 +1454,13 @@ document.getElementById("save-settings-btn").addEventListener("click", async () 
   const shiftStartHour = parseFloat(document.getElementById("set-shift-start").value);
   const shiftLengthHours = parseFloat(document.getElementById("set-shift-length").value);
   const shiftGraceHours = parseFloat(document.getElementById("set-shift-grace").value);
+  const productionHoursPerShift = parseFloat(document.getElementById("set-production-hours").value);
   await db.collection("settings").doc("appSettings").set({
     avgUphWindowShifts, trendRecentDays, trendPriorDays,
     shiftStartHour: isNaN(shiftStartHour) ? 17 : shiftStartHour,
     shiftLengthHours: isNaN(shiftLengthHours) ? 10.5 : shiftLengthHours,
-    shiftGraceHours: isNaN(shiftGraceHours) ? 1 : shiftGraceHours
+    shiftGraceHours: isNaN(shiftGraceHours) ? 1 : shiftGraceHours,
+    productionHoursPerShift: isNaN(productionHoursPerShift) ? 9.16 : productionHoursPerShift
   });
 });
 
