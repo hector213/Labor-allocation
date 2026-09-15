@@ -444,7 +444,11 @@ const FUNCTIONS = {
   // import can finally populate real UPH for them (defaultUPH below is still a starting guess
   // until enough import history builds up real averages).
   LARGE_CONSOLIDATION: { name: "Large Consolidation",     tranType: "311", defaultUPH: 50,  type: "bucket", defaultCapacity: 4 },
-  SMALL_CONSOLIDATION: { name: "Small Consolidation",     tranType: "311", defaultUPH: 50,  type: "bucket", defaultCapacity: 4 }
+  SMALL_CONSOLIDATION: { name: "Small Consolidation",     tranType: "311", defaultUPH: 50,  type: "bucket", defaultCapacity: 4 },
+  // New: Inbound. defaultUPH below is a placeholder like Consolidation's was — correct it in
+  // Admin > Stations once enough import history builds up a real average for Tran Types 151/212.
+  INBOUND_RECEIVER:    { name: "Inbound Receiver",        tranType: "151", defaultUPH: 50,  type: "bucket", defaultCapacity: 6 },
+  INBOUND_PUTAWAY:     { name: "Inbound Putaway",         tranType: "212", defaultUPH: 50,  type: "bucket", defaultCapacity: 6 }
 };
 
 /* Default calc settings (overridden by /settings/appSettings once saved) */
@@ -459,7 +463,8 @@ const ZONES = [
   { label: "MOD Pick Zone",          functions: ["MOD_PICK"],                                      column: 3 },
   { label: "Walkie Pick Zone",       functions: ["WALKIE_PICK"],                                   column: 4 },
   { label: "Replen Zone",            functions: ["REPLEN_PICK", "REPLEN_PUT"],                     column: 2 },
-  { label: "Consolidation",          functions: ["LARGE_CONSOLIDATION", "SMALL_CONSOLIDATION"],    column: 3 }
+  { label: "Consolidation",          functions: ["LARGE_CONSOLIDATION", "SMALL_CONSOLIDATION"],    column: 3 },
+  { label: "Inbound Zone",           functions: ["INBOUND_RECEIVER", "INBOUND_PUTAWAY"],           column: 4 }
 ];
 
 /* Tran Type counted toward the "Pack-out so far" stat — Pack completions only (315), since that's
