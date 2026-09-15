@@ -261,7 +261,9 @@
           Ideal target line is the Combined goal for this function group, spread across production
           minutes only &mdash; the 7:00 PM break (15 min), 10:30 PM lunch (30 min), and 1:45 AM
           break (15 min) are excluded, so the line holds flat through each one, matching the
-          Packing_Trend sheet's schedule.
+          Packing_Trend sheet's schedule. It targets 100% at the end of the normal shift length;
+          if today's import shows units still coming in during the extra hour, it automatically
+          stretches the target window to match instead of assuming every day runs long.
         </div>
       </div>
     </section>
@@ -1123,16 +1125,29 @@ function renderTrendChart() {
   // Spread dailyTarget across production minutes (clock time minus the 2 breaks + lunch),
   // not raw elapsed clock time, so the ideal line matches the Packing_Trend sheet instead of
   // climbing straight through a break.
+  //
+  // The goal should hit 100% at the end of the NOMINAL shift (shiftLengthHours), not the
+  // extended grace-hour window the bucket list displays — the grace hour is just buffer for
+  // days that run long, not part of every day's target. Whether "today" is one of those long
+  // days isn't known in advance, so it's auto-detected from the imported data itself: if any
+  // units have landed in a bucket past the nominal end, today ran into the extra hour, and the
+  // target window stretches to match; otherwise the target line goes flat at the nominal end
+  // (matches shift progress %/Expected-by-now above, which already use nominal length only).
   const breaks = shiftBreakOffsetsMinutes();
-  const totalWindowMin = buckets.length * 30;
-  const totalProdMin = productionMinutesElapsed(totalWindowMin, breaks);
+  const nominalWindowMin = appSettings.shiftLengthHours * 60;
+  const nominalEndBucketIdx = Math.floor(nominalWindowMin / 30);
+  const ranIntoGraceHour = bucketUnits.slice(nominalEndBucketIdx).some(u => u > 0);
+  const fullWindowMin = buckets.length * 30;
+  const effectiveWindowMin = ranIntoGraceHour ? fullWindowMin : Math.min(nominalWindowMin, fullWindowMin);
+  const totalProdMin = productionMinutesElapsed(effectiveWindowMin, breaks);
 
   const actualCum = [], idealCum = [];
   let running = 0;
   buckets.forEach((b, i) => {
     running += bucketUnits[i];
     actualCum.push(running);
-    const prodMinSoFar = productionMinutesElapsed((i + 1) * 30, breaks);
+    const elapsedMin = Math.min((i + 1) * 30, effectiveWindowMin);
+    const prodMinSoFar = productionMinutesElapsed(elapsedMin, breaks);
     idealCum.push(totalProdMin > 0 ? Math.round(dailyTarget * (prodMinSoFar / totalProdMin)) : 0);
   });
 
