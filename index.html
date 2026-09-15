@@ -135,6 +135,22 @@
   .field input, .field select{padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);}
   #import-log{background:#0f1520;color:#c8d6ee;font-family:ui-monospace,Consolas,monospace;font-size:12px;padding:10px;border-radius:8px;max-height:260px;overflow:auto;white-space:pre-wrap;margin-top:12px;}
   .note{font-size:12px;color:var(--muted);background:#f7f9fb;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:14px;}
+
+  /* Certs picker: a small "Add Certs"/"Certs" button opens this modal instead of a cramped
+     multi-select — check the functions someone's trained/certified on, Save writes them all
+     at once as that associate's trainedRoles. */
+  .certs-btn{background:#fff;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;white-space:nowrap;}
+  .certs-btn:hover{background:#f2f5f9;}
+  .certs-summary{font-size:11px;color:var(--muted);margin-top:3px;max-width:180px;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(15,21,32,0.45);display:flex;align-items:center;justify-content:center;z-index:1000;}
+  .modal-overlay.hidden{display:none;}
+  .modal-box{background:#fff;border-radius:10px;padding:18px 20px;width:320px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 12px 32px rgba(0,0,0,0.25);}
+  .modal-box h3{margin:0 0 4px;font-size:15px;}
+  .modal-box .note{margin:6px 0 10px;}
+  .certs-list{overflow:auto;flex:1;border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
+  .certs-list label{display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:13px;cursor:pointer;}
+  .certs-list label:hover{background:#f7f9fb;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;}
 </style>
 </head>
 <body>
@@ -230,7 +246,11 @@
           <div class="field"><label>Employee Id (login/handle)</label><input id="new-assoc-eid"></div>
           <div class="field"><label>Display name</label><input id="new-assoc-name"></div>
           <div class="field"><label>Associate Id (IE#)</label><input id="new-assoc-code"></div>
-          <div class="field"><label>Trained roles (ctrl/cmd-click for multiple)</label><select id="new-assoc-role" multiple size="4"></select></div>
+          <div class="field">
+            <label>Certifications</label>
+            <button type="button" class="certs-btn" id="new-assoc-certs-btn">+ Add Certs</button>
+            <div class="certs-summary" id="new-assoc-certs-summary">None selected</div>
+          </div>
           <div class="field"><label><input type="checkbox" id="new-assoc-automated"> Automated (not a person)</label></div>
           <button class="btn" id="add-assoc-btn">Add associate</button>
         </div>
@@ -257,7 +277,7 @@
         <button class="btn secondary" id="bulk-add-assoc-btn">Bulk add</button>
         <div id="bulk-assoc-log" class="note hidden"></div>
         <table class="admin-table" id="assoc-table">
-          <thead><tr><th>Employee Id</th><th>Name</th><th>Associate Id</th><th>Trained Roles (ctrl/cmd-click)</th><th>Active</th><th>Automated</th><th></th></tr></thead>
+          <thead><tr><th>Employee Id</th><th>Name</th><th>Associate Id</th><th>Certs</th><th>Active</th><th>Automated</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -331,6 +351,20 @@
       </div>
     </section>
   </main>
+</div>
+
+<!-- Certs picker modal: reused by both "Add associate" and each row's Certs button in the
+     Associates admin table. See openCertsModal() in the script. -->
+<div class="modal-overlay hidden" id="certs-modal">
+  <div class="modal-box">
+    <h3>Certifications / trained functions</h3>
+    <div class="note">Check every function this associate is certified/trained on.</div>
+    <div class="certs-list" id="certs-list"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="certs-cancel-btn">Cancel</button>
+      <button class="btn" id="certs-save-btn">Save</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -537,17 +571,6 @@ function startListeners() {
   watchShift(currentShiftDate);
 
   populateFunctionDropdown();
-  populateRoleDropdown();
-}
-
-function populateRoleDropdown() {
-  const sel = document.getElementById("new-assoc-role");
-  sel.innerHTML = ""; // multi-select: leaving nothing selected means "Unassigned"
-  Object.entries(FUNCTIONS).forEach(([key, fn]) => {
-    const opt = document.createElement("option");
-    opt.value = key; opt.textContent = fn.name;
-    sel.appendChild(opt);
-  });
 }
 
 function watchShift(shiftDate) {
@@ -1099,20 +1122,74 @@ function renderStationsAdmin() {
 }
 
 /* ======================================================================
+   CERTS PICKER MODAL
+   Shared by "Add associate" and each row's Certs button below — opens with
+   a given set of currently-checked function keys, calls onSave(keys) if
+   the user clicks Save, does nothing if they Cancel/click outside.
+   ====================================================================== */
+function certsSummaryText(keys) {
+  if (!keys.length) return "None selected";
+  return keys.map(k => (FUNCTIONS[k] ? FUNCTIONS[k].name : k)).join(", ");
+}
+function openCertsModal(selectedKeys, onSave) {
+  const overlay = document.getElementById("certs-modal");
+  const list = document.getElementById("certs-list");
+  list.innerHTML = "";
+  Object.entries(FUNCTIONS).forEach(([key, fn]) => {
+    const label = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.value = key;
+    cb.checked = selectedKeys.includes(key);
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(fn.name));
+    list.appendChild(label);
+  });
+  overlay.classList.remove("hidden");
+
+  const saveBtn = document.getElementById("certs-save-btn");
+  const cancelBtn = document.getElementById("certs-cancel-btn");
+  function close() {
+    overlay.classList.add("hidden");
+    saveBtn.removeEventListener("click", onSaveClick);
+    cancelBtn.removeEventListener("click", close);
+    overlay.removeEventListener("click", onOverlayClick);
+  }
+  function onSaveClick() {
+    const keys = [...list.querySelectorAll("input[type=checkbox]:checked")].map(cb => cb.value);
+    close();
+    onSave(keys);
+  }
+  function onOverlayClick(e) { if (e.target === overlay) close(); }
+  saveBtn.addEventListener("click", onSaveClick);
+  cancelBtn.addEventListener("click", close);
+  overlay.addEventListener("click", onOverlayClick);
+}
+
+/* ======================================================================
    ADMIN: ASSOCIATES
    ====================================================================== */
+let newAssocCerts = [];
+document.getElementById("new-assoc-certs-btn").addEventListener("click", () => {
+  openCertsModal(newAssocCerts, keys => {
+    newAssocCerts = keys;
+    document.getElementById("new-assoc-certs-summary").textContent = certsSummaryText(keys);
+  });
+});
+
 document.getElementById("add-assoc-btn").addEventListener("click", async () => {
   const employeeId = document.getElementById("new-assoc-eid").value.trim();
   const name = document.getElementById("new-assoc-name").value.trim();
   const associateCode = document.getElementById("new-assoc-code").value.trim();
-  const trainedRoles = [...document.getElementById("new-assoc-role").selectedOptions].map(o => o.value);
+  const trainedRoles = newAssocCerts;
   const automated = document.getElementById("new-assoc-automated").checked;
   if (!employeeId || !name) { alert("Employee Id and name are required."); return; }
   await db.collection("associates").add({ employeeId, name, associateCode, trainedRoles, active: true, automated });
   document.getElementById("new-assoc-eid").value = "";
   document.getElementById("new-assoc-name").value = "";
   document.getElementById("new-assoc-code").value = "";
-  document.getElementById("new-assoc-role").selectedIndex = -1;
+  newAssocCerts = [];
+  document.getElementById("new-assoc-certs-summary").textContent = "None selected";
   document.getElementById("new-assoc-automated").checked = false;
 });
 
@@ -1150,24 +1227,27 @@ function renderAssociatesAdmin() {
   associates.forEach(a => {
     const tr = document.createElement("tr");
     const myRoles = rolesFor(a);
-    const roleOptions = Object.entries(FUNCTIONS)
-      .map(([key, fn]) => `<option value="${key}" ${myRoles.includes(key) ? "selected" : ""}>${fn.name}</option>`).join("");
     tr.innerHTML = `
       <td>${a.employeeId}</td>
       <td><input value="${a.name}" data-field="name"></td>
       <td><input value="${a.associateCode || ""}" data-field="associateCode"></td>
-      <td><select data-field="trainedRoles" multiple size="3">${roleOptions}</select></td>
+      <td>
+        <button type="button" class="certs-btn" data-action="certs">Certs</button>
+        <div class="certs-summary">${certsSummaryText(myRoles)}</div>
+      </td>
       <td><input type="checkbox" data-field="active" ${a.active !== false ? "checked" : ""}></td>
       <td><input type="checkbox" data-field="automated" ${a.automated ? "checked" : ""} title="Not a person — hidden from Talent Pool, units still count"></td>
       <td class="row-actions"><button data-action="delete">Delete</button></td>`;
-    tr.querySelectorAll("input, select").forEach(inp => {
+    tr.querySelectorAll("input").forEach(inp => {
       inp.addEventListener("change", () => {
         const field = inp.dataset.field;
-        let val;
-        if (field === "active" || field === "automated") val = inp.checked;
-        else if (field === "trainedRoles") val = [...inp.selectedOptions].map(o => o.value);
-        else val = inp.value;
+        const val = (field === "active" || field === "automated") ? inp.checked : inp.value;
         db.collection("associates").doc(a.id).update({ [field]: val });
+      });
+    });
+    tr.querySelector('[data-action="certs"]').addEventListener("click", () => {
+      openCertsModal(rolesFor(a), keys => {
+        db.collection("associates").doc(a.id).update({ trainedRoles: keys });
       });
     });
     tr.querySelector('[data-action="delete"]').addEventListener("click", () => {
