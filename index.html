@@ -258,10 +258,10 @@
         </div>
         <canvas id="trend-chart" height="90"></canvas>
         <div class="note" id="trend-note" style="margin-top:10px;">
-          Ideal target line is the Combined goal for this function group, spread evenly across the
-          shift window by elapsed clock time &mdash; a simplification of the Packing_Trend sheet's
-          production-minute schedule (which excludes breaks/lunch/cleanup minute-by-minute). Close
-          enough to flag "behind pace" in real time; treat exact minute-level variance as approximate.
+          Ideal target line is the Combined goal for this function group, spread across production
+          minutes only &mdash; the 7:00 PM break (15 min), 10:30 PM lunch (30 min), and 1:45 AM
+          break (15 min) are excluded, so the line holds flat through each one, matching the
+          Packing_Trend sheet's schedule.
         </div>
       </div>
     </section>
@@ -1050,7 +1050,42 @@ function renderBoard() {
    between Pack (315) and Pick (301). See shiftBucketList()/bucketIndexForHour() above and the
    import-time bucket aggregation in cleanRows()/the commit handler below for how
    shiftTrendDocs gets populated.
+
+   The Ideal Target line spreads the Combined goal across PRODUCTION minutes only, just like the
+   Packing_Trend sheet — clock minutes inside the 2 breaks + lunch below don't count, so the
+   target line holds flat through a break instead of climbing. Fixed clock times per Hector
+   (A2 Night Shift), same as the spreadsheet: 7:00 PM break (15 min), 10:30 PM lunch (30 min),
+   1:45 AM break (15 min). Edit SHIFT_BREAKS below if these ever change.
    ====================================================================== */
+const SHIFT_BREAKS = [
+  { hh: 19,   durationMin: 15 }, // 7:00 PM break
+  { hh: 22.5, durationMin: 30 }, // 10:30 PM lunch
+  { hh: 1.75, durationMin: 15 }  // 1:45 AM break
+];
+
+// Each break's start expressed as minutes elapsed since shift start (wrapping past midnight),
+// so it lines up with the same clock-minutes-elapsed scale the trend buckets use.
+function shiftBreakOffsetsMinutes() {
+  const start = appSettings.shiftStartHour;
+  return SHIFT_BREAKS.map(b => {
+    let offset = b.hh - start;
+    if (offset < 0) offset += 24;
+    const startMin = offset * 60;
+    return { startMin, endMin: startMin + b.durationMin };
+  });
+}
+
+// Clock minutes elapsed since shift start, minus whatever portion of that span fell inside a
+// break/lunch window — i.e. "production minutes," matching the spreadsheet's schedule.
+function productionMinutesElapsed(elapsedMin, breaks) {
+  let prod = elapsedMin;
+  breaks.forEach(b => {
+    const overlap = Math.max(0, Math.min(elapsedMin, b.endMin) - b.startMin);
+    prod -= overlap;
+  });
+  return Math.max(0, prod);
+}
+
 document.querySelectorAll(".trend-toggle-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     selectedTrendTran = btn.dataset.trendTran;
@@ -1085,12 +1120,20 @@ function renderTrendChart() {
     .filter(g => groupFnKeys.includes(g.functionKey))
     .reduce((s, g) => s + (g.targetUnits || 0), 0);
 
+  // Spread dailyTarget across production minutes (clock time minus the 2 breaks + lunch),
+  // not raw elapsed clock time, so the ideal line matches the Packing_Trend sheet instead of
+  // climbing straight through a break.
+  const breaks = shiftBreakOffsetsMinutes();
+  const totalWindowMin = buckets.length * 30;
+  const totalProdMin = productionMinutesElapsed(totalWindowMin, breaks);
+
   const actualCum = [], idealCum = [];
   let running = 0;
   buckets.forEach((b, i) => {
     running += bucketUnits[i];
     actualCum.push(running);
-    idealCum.push(Math.round(dailyTarget * ((i + 1) / buckets.length)));
+    const prodMinSoFar = productionMinutesElapsed((i + 1) * 30, breaks);
+    idealCum.push(totalProdMin > 0 ? Math.round(dailyTarget * (prodMinSoFar / totalProdMin)) : 0);
   });
 
   // "So far" = the bucket containing right now, so the summary stats above the chart read as a
