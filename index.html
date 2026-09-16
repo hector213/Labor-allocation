@@ -76,6 +76,16 @@
   .pace-badge.behind{background:var(--bad-bg);color:var(--bad);}
   .pace-badge.none{background:var(--bucket-bg);color:var(--muted);}
   .trend-toggle{display:flex;gap:6px;}
+  .assoc-trend-body{display:flex;gap:18px;align-items:flex-start;}
+  .assoc-trend-chart-wrap{flex:1;min-width:0;}
+  .assoc-trend-hourly-wrap{width:200px;flex-shrink:0;max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;}
+  table.assoc-trend-hourly-table{width:100%;border-collapse:collapse;font-size:13px;}
+  table.assoc-trend-hourly-table th{position:sticky;top:0;background:var(--bg);text-align:left;padding:6px 10px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;}
+  table.assoc-trend-hourly-table td{padding:5px 10px;border-bottom:1px solid var(--border);}
+  table.assoc-trend-hourly-table td:last-child, table.assoc-trend-hourly-table th:last-child{text-align:right;}
+  table.assoc-trend-hourly-table tr.assoc-trend-hourly-current{background:var(--slot-bg);font-weight:600;}
+  .assoc-trend-hourly-empty{color:var(--muted);text-align:center;padding:14px 10px;}
+  @media (max-width: 900px){ .assoc-trend-body{flex-direction:column;} .assoc-trend-hourly-wrap{width:100%;max-height:220px;} }
   .trend-toggle-btn{background:#fff;border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;}
   .trend-toggle-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
   .trend-stats{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:12px;}
@@ -314,7 +324,23 @@
           <div class="shift-stat">Actual UPH (live) <b id="assoc-trend-avg-uph">0.0</b></div>
           <div class="shift-stat">Target UPH <b id="assoc-trend-target-uph">0</b></div>
         </div>
-        <canvas id="assoc-trend-chart" height="90"></canvas>
+        <div class="assoc-trend-body">
+          <div class="assoc-trend-chart-wrap">
+            <canvas id="assoc-trend-chart" height="90"></canvas>
+          </div>
+          <!-- Hour-by-hour breakdown: actual units scanned in each clock hour, not an average —
+               same idea as the per-associate hourly columns in the Shift Cost Sheet. Built from
+               the same assocTrend bucket data as the chart, just summed in pairs of half-hour
+               buckets instead of accumulated. See renderAssocTrendChart(). -->
+          <div class="assoc-trend-hourly-wrap">
+            <table class="assoc-trend-hourly-table" id="assoc-trend-hourly-table">
+              <thead><tr><th>Hour</th><th>Units</th></tr></thead>
+              <tbody id="assoc-trend-hourly-body">
+                <tr><td colspan="2" class="assoc-trend-hourly-empty">Select associate &amp; function</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
         <div class="note" id="assoc-trend-note" style="margin-top:10px;">
           Pick an associate and a function above. Ideal is that function's Target UPH (Admin &gt;
           Stations) spread across production minutes only, same Startup/break/lunch/Cleanup
@@ -326,7 +352,8 @@
           of team-wide. Scan data can't tell apart functions that share a Tran Type (OP/MOD/Walkie/
           WOS Pick all post as 301; Small/
           Large/WOS Pack all post as 315) &mdash; picking any one of those shows that associate's
-          combined activity across all of them for that Tran Type.
+          combined activity across all of them for that Tran Type. The table beside the chart is
+          the actual raw units scanned in each clock hour &mdash; not an average, not smoothed.
         </div>
       </div>
     </section>
@@ -1393,6 +1420,7 @@ function renderAssocTrendChart() {
     document.getElementById("assoc-trend-target-uph").textContent = "0";
     if (badgeEl) { badgeEl.textContent = "Select associate & function"; badgeEl.className = "pace-badge none"; }
     if (assocTrendChartInstance) { assocTrendChartInstance.destroy(); assocTrendChartInstance = null; }
+    renderAssocTrendHourlyTable(null, null, -1);
     return;
   }
   if (typeof Chart === "undefined") {
@@ -1470,6 +1498,8 @@ function renderAssocTrendChart() {
   const avgUphLive = elapsedProdHours > 0 ? actualSoFar / elapsedProdHours : 0;
   document.getElementById("assoc-trend-avg-uph").textContent = avgUphLive.toFixed(1);
 
+  renderAssocTrendHourlyTable(buckets, bucketUnits, soFarIdx);
+
   const labels = buckets.map(b => b.label);
   const associate = associates.find(a => a.id === associateId);
   const datasets = [
@@ -1493,6 +1523,29 @@ function renderAssocTrendChart() {
         scales: { y: { beginAtZero: true } }
       }
     });
+  }
+}
+
+// Hour-by-hour breakdown table next to the chart: actual units scanned in each clock hour for
+// this associate/function, not an average — pairs up the same 30-min buckets the chart uses
+// (the shift starts on the hour, so every pair lines up to a clean hour except the last leftover
+// half-hour bucket, which gets its own row). Pass buckets/bucketUnits as null to show the
+// "select associate & function" placeholder instead.
+function renderAssocTrendHourlyTable(buckets, bucketUnits, soFarIdx) {
+  const tbody = document.getElementById("assoc-trend-hourly-body");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  if (!buckets || !bucketUnits) {
+    tbody.innerHTML = '<tr><td colspan="2" class="assoc-trend-hourly-empty">Select associate &amp; function</td></tr>';
+    return;
+  }
+  for (let i = 0; i < buckets.length; i += 2) {
+    const units = bucketUnits[i] + (bucketUnits[i + 1] || 0);
+    const isCurrent = soFarIdx === i || soFarIdx === i + 1;
+    const tr = document.createElement("tr");
+    if (isCurrent) tr.className = "assoc-trend-hourly-current";
+    tr.innerHTML = `<td>${buckets[i].label}</td><td>${units}</td>`;
+    tbody.appendChild(tr);
   }
 }
 
