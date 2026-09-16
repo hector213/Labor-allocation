@@ -269,13 +269,13 @@
         <canvas id="trend-chart" height="90"></canvas>
         <div class="note" id="trend-note" style="margin-top:10px;">
           Ideal target line is the Combined goal for this function group, spread across production
-          minutes only &mdash; the 7:00 PM break (15 min), 10:30 PM lunch (30 min), and 1:45 AM
-          break (15 min) are excluded, so the line holds flat through each one, matching the
-          Packing_Trend sheet's schedule. The pace is also scaled so a full nominal shift equals
-          Settings &gt; Production hours per shift (9.16h), not just 10.5h minus those 3 breaks.
-          It targets 100% at the end of the normal shift length; if today's import shows units
-          still coming in during the extra hour, it automatically stretches the target window to
-          match instead of assuming every day runs long.
+          minutes only &mdash; a 10-minute Startup, the 7:00 PM break (15 min), 10:30 PM lunch
+          (30 min), 1:45 AM break (15 min), and a 10-minute Cleanup before the shift's nominal end
+          are all excluded, so the line holds flat through each one, matching the Packing_Trend
+          sheet's own minute-by-minute schedule (630 nominal minutes &minus; 80 non-production
+          minutes = 550 production minutes, 9.1667h). It targets 100% at the end of the normal
+          shift length; if today's import shows units still coming in during the extra hour, it
+          automatically stretches the target window to match instead of assuming every day runs long.
         </div>
       </div>
     </section>
@@ -317,13 +317,14 @@
         <canvas id="assoc-trend-chart" height="90"></canvas>
         <div class="note" id="assoc-trend-note" style="margin-top:10px;">
           Pick an associate and a function above. Ideal is that function's Target UPH (Admin &gt;
-          Stations) spread across production minutes only, same break/lunch handling as the Pick
-          &amp; Pack Trend tab, scaled so a full nominal shift equals Settings &gt; Production hours
-          per shift (9.16h) rather than 10.5h minus just the 3 named breaks. It holds flat at that
-          nominal-shift total unless this associate's own data shows units still landing past the
-          normal end &mdash; then it keeps accruing through the extra hour, same auto-detect as the
-          Pick &amp; Pack Trend tab, just per associate instead of team-wide. Scan data can't tell
-          apart functions that share a Tran Type (OP/MOD/Walkie/WOS Pick all post as 301; Small/
+          Stations) spread across production minutes only, same Startup/break/lunch/Cleanup
+          handling as the Pick &amp; Pack Trend tab (630 nominal minutes &minus; 80 non-production
+          minutes = 550 production minutes, 9.1667h &mdash; matching the Shift Cost Sheet's own
+          schedule). It holds flat at that nominal-shift total unless this associate's own data
+          shows units still landing past the normal end &mdash; then it keeps accruing through the
+          extra hour, same auto-detect as the Pick &amp; Pack Trend tab, just per associate instead
+          of team-wide. Scan data can't tell apart functions that share a Tran Type (OP/MOD/Walkie/
+          WOS Pick all post as 301; Small/
           Large/WOS Pack all post as 315) &mdash; picking any one of those shows that associate's
           combined activity across all of them for that Tran Type.
         </div>
@@ -658,14 +659,13 @@ function shiftBucketList() {
   const count = Math.round(totalHours / 0.5);
   const buckets = [];
   for (let i = 0; i < count; i++) {
-    // Label each bucket by the clock time at the END of its half-hour interval, not the start —
-    // renderTrendChart()/renderAssocTrendChart() plot bucket i's CUMULATIVE total as of the end
-    // of that interval (i.e. after that half-hour's units are added in), so the label needs to
-    // match that same "through this time" reading. Labeling by the start time instead (the old
-    // behavior) put every point's label 30 minutes EARLIER than the value it was showing — e.g.
-    // the point labeled "3:30 AM" was actually the cumulative through 4:00 AM, which is why an
-    // ideal-target reading "at 3:30 AM" looked too high by about a bucket's worth of pace.
-    const hh = (start + (i + 1) * 0.5) % 24;
+    // Label each bucket by the clock time at the START of its half-hour interval — this matches
+    // the Shift Cost Sheet's own Packing_Trend row convention exactly: its "8:30 PM" row already
+    // includes everything scanned through 9:00 PM (Prod Min Elapsed jumps a full 30 minutes by
+    // that row). A prior version of this code labeled by the END of the interval instead, which
+    // seemed more "correct" in isolation but put every point 30 minutes AHEAD of the row you'd
+    // actually compare it to in the sheet — reverted so the two line up bucket-for-bucket.
+    const hh = (start + i * 0.5) % 24;
     const h24 = Math.floor(hh);
     const min = Math.round((hh % 1) * 60);
     const ampm = h24 < 12 ? "AM" : "PM";
@@ -1139,58 +1139,56 @@ function renderBoard() {
    shiftTrendDocs gets populated.
 
    The Ideal Target line spreads the Combined goal across PRODUCTION minutes only, just like the
-   Packing_Trend sheet — clock minutes inside the 2 breaks + lunch below don't count, so the
-   target line holds flat through a break instead of climbing. Fixed clock times per Hector
-   (A2 Night Shift), same as the spreadsheet: 7:00 PM break (15 min), 10:30 PM lunch (30 min),
-   1:45 AM break (15 min). Edit SHIFT_BREAKS below if these ever change.
+   Packing_Trend sheet — clock minutes inside the breaks/lunch/startup/cleanup below don't count,
+   so the target line holds flat through each one instead of climbing. Pulled directly from a
+   row-by-row export of the sheet's own Packing_Trend schedule (its "Prod Min Elapsed" column):
+   a 10-minute Startup at the very top of the shift, the 3 named breaks below (fixed clock times
+   per Hector, A2 Night Shift), and a 10-minute Cleanup in the last 10 minutes of the nominal
+   shift — 10 + 15 + 30 + 15 + 10 = 80 non-production minutes out of the 630-minute (10.5h)
+   nominal shift, landing on exactly 550 production minutes (9.1667h ≈ the 9.16h in Settings),
+   matching the sheet's Prod Min Elapsed column exactly at every row that was checked against it.
+   Edit SHIFT_BREAKS/STARTUP_MIN/CLEANUP_MIN below if the real schedule ever changes.
    ====================================================================== */
 const SHIFT_BREAKS = [
   { hh: 19,   durationMin: 15 }, // 7:00 PM break
   { hh: 22.5, durationMin: 30 }, // 10:30 PM lunch
   { hh: 1.75, durationMin: 15 }  // 1:45 AM break
 ];
+const STARTUP_MIN = 10; // non-production ramp-up at the very start of the shift
+const CLEANUP_MIN = 10; // non-production wind-down in the last 10 min of the NOMINAL shift
 
-// Each break's start expressed as minutes elapsed since shift start (wrapping past midnight),
-// so it lines up with the same clock-minutes-elapsed scale the trend buckets use.
+// Every non-production window (Startup, the 3 named breaks, Cleanup) expressed as minutes
+// elapsed since shift start, so they line up with the same clock-minutes-elapsed scale the
+// trend buckets use. Startup and Cleanup are anchored to the shift's own start/end (not a fixed
+// wall-clock hour like the named breaks), so they're derived here rather than kept in
+// SHIFT_BREAKS.
 function shiftBreakOffsetsMinutes() {
   const start = appSettings.shiftStartHour;
-  return SHIFT_BREAKS.map(b => {
+  const nominalWindowMin = appSettings.shiftLengthHours * 60;
+  const named = SHIFT_BREAKS.map(b => {
     let offset = b.hh - start;
     if (offset < 0) offset += 24;
     const startMin = offset * 60;
     return { startMin, endMin: startMin + b.durationMin };
   });
-}
-
-// The 3 named breaks above only total 60 minutes, but a 10.5-hour shift (630 min) nets out to
-// Settings > "Production hours per shift" (9.16h = 549.6 min per appSettings.productionHoursPerShift)
-// once things like start/end cleanup are factored in too — a 20.4-minute gap the 3 clock-time
-// breaks alone don't cover. Rather than guess where that extra time falls, this scales the
-// production-minutes-elapsed curve so it still holds flat through each named break (visually
-// matching the schedule) but lands on exactly productionHoursPerShift by the end of the nominal
-// shift length, so the "9.16 production hours" the shift is actually run against, not just
-// "10.5 hours minus 3 known breaks," is what every Target-UPH-based calculation uses.
-function productionMinuteScaleFactor(breaks) {
-  const nominalWindowMin = appSettings.shiftLengthHours * 60;
-  let rawProdAtNominalEnd = nominalWindowMin;
-  breaks.forEach(b => {
-    const overlap = Math.max(0, Math.min(nominalWindowMin, b.endMin) - b.startMin);
-    rawProdAtNominalEnd -= overlap;
-  });
-  const desiredProdMin = (appSettings.productionHoursPerShift || 0) * 60;
-  return (rawProdAtNominalEnd > 0 && desiredProdMin > 0) ? desiredProdMin / rawProdAtNominalEnd : 1;
+  return [
+    { startMin: 0, endMin: STARTUP_MIN },
+    ...named,
+    { startMin: Math.max(0, nominalWindowMin - CLEANUP_MIN), endMin: nominalWindowMin }
+  ];
 }
 
 // Clock minutes elapsed since shift start, minus whatever portion of that span fell inside a
-// break/lunch window, then scaled to land on Settings > Production hours per shift by the end
-// of the nominal shift — i.e. "production minutes," matching the spreadsheet's schedule.
+// non-production window — i.e. "production minutes," matching the spreadsheet's Prod Min
+// Elapsed column exactly (no approximation/scaling needed now that Startup and Cleanup are
+// modeled explicitly instead of guessed at).
 function productionMinutesElapsed(elapsedMin, breaks) {
   let prod = elapsedMin;
   breaks.forEach(b => {
     const overlap = Math.max(0, Math.min(elapsedMin, b.endMin) - b.startMin);
     prod -= overlap;
   });
-  return Math.max(0, prod) * productionMinuteScaleFactor(breaks);
+  return Math.max(0, prod);
 }
 
 document.querySelectorAll(".trend-toggle-btn").forEach(btn => {
