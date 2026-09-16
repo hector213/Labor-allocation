@@ -63,6 +63,68 @@
   .shift-stat b.pos{color:#7be3a4;} .shift-stat b.neg{color:#ff9b9b;}
   .shift-progress-bar{width:100%;height:6px;background:#0e1730;border-radius:4px;overflow:hidden;margin-top:8px;}
   .shift-progress-bar > div{height:100%;background:#4c8bff;}
+  #shift-bar .hero-sub{font-size:12px;font-weight:500;color:var(--hero-muted);margin-left:10px;}
+
+  /* Labor Pivot hero — status banner + metric cards + analysis box, ported from the standalone
+     LAS1 Live Shift Tracker prototype's visual design, scoped to Combined Pack (the same
+     aggregate the old flat stat strip covered) since that's the one number small/large/WOS Pack
+     already roll up into. Actual is LIVE from import data (Pack-out so far), not typed in. */
+  #pivot-status-banner{
+    width:100%;padding:10px 18px;text-align:center;border-radius:8px;
+    font-size:1.05rem;font-weight:700;letter-spacing:.5px;margin-bottom:2px;
+  }
+  #pivot-status-banner.on-pace{background:#166534;color:#86efac;}
+  #pivot-status-banner.ahead{background:#14532d;color:#4ade80;}
+  #pivot-status-banner.behind{background:#7f1d1d;color:#fca5a5;}
+  #pivot-status-banner.no-shift{background:#1e293b;color:var(--hero-muted);}
+  #pivot-status-banner.break-time{background:#1e3a5f;color:#93c5fd;}
+  #pivot-status-banner.goal{background:#1e3a5f;color:#93c5fd;}
+
+  #pivot-card-grid{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
+  .pivot-card{background:#1a2f52;border:1px solid #2d4a7a;border-radius:10px;padding:12px 14px;}
+  .pivot-card-label{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:5px;}
+  .pivot-card-value{font-size:1.7rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
+  .pivot-card-sub{font-size:.7rem;color:var(--hero-muted);margin-top:4px;}
+  .pivot-card-value.green{color:#4ade80;} .pivot-card-value.red{color:#fca5a5;}
+  .pivot-card-value.yellow{color:#facc15;} .pivot-card-value.white{color:#fff;} .pivot-card-value.accent{color:var(--accent,#f5a623);}
+
+  #pivot-analysis{width:100%;background:#16213f;border:1px solid #2d4a7a;border-radius:10px;padding:14px 18px;}
+  .pivot-analysis-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:10px;}
+  .pivot-analysis-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+  .pivot-item-label{font-size:.68rem;color:var(--hero-muted);text-transform:uppercase;letter-spacing:.05em;}
+  .pivot-item-value{font-size:1.2rem;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px;}
+  .pivot-item-value.green{color:#4ade80;} .pivot-item-value.red{color:#fca5a5;}
+  .pivot-item-value.white{color:#fff;} .pivot-item-value.accent{color:var(--accent,#f5a623);}
+  .pivot-rec{margin-top:12px;padding:9px 14px;border-radius:8px;font-size:.85rem;font-weight:600;line-height:1.4;}
+  .pivot-rec.ok{background:#14532d;color:#86efac;}
+  .pivot-rec.warn{background:#78350f;color:#fde68a;}
+  .pivot-rec.behind{background:#7f1d1d;color:#fca5a5;}
+  .pivot-rec.nodata{background:#1e293b;color:var(--hero-muted);}
+
+  #shift-schedule-bar-wrap{width:100%;}
+  .sched-title{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:6px;}
+  .sched-bar{display:flex;height:24px;border-radius:6px;overflow:hidden;border:1px solid #2d4a7a;position:relative;}
+  .sched-seg{display:flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:700;letter-spacing:.04em;overflow:hidden;white-space:nowrap;}
+  .sched-seg.prod{background:#1e4d8c;color:#93c5fd;}
+  .sched-seg.startup, .sched-seg.cleanup{background:#374151;color:#d1d5db;}
+  .sched-seg.brk{background:#78350f;color:#fde68a;}
+  .sched-seg.extra{background:#1c1c2e;color:#4b5563;}
+  .sched-now{position:absolute;top:0;bottom:0;width:3px;background:var(--accent,#f5a623);z-index:2;border-radius:2px;}
+  .sched-labels{display:flex;justify-content:space-between;margin-top:4px;}
+  .sched-lbl{font-size:.6rem;color:var(--hero-muted);}
+
+  /* Labor Pivot planner — lives inside #shift-bar, replacing what used to be just a stat strip.
+     Ranks every function with a goal set today by how short-handed it is and recommends a
+     headcount move, using live actual units (actualUnitsToday) and remaining PRODUCTION minutes
+     (shiftBreakOffsetsMinutes/productionMinutesElapsed, same break schedule as the trend chart). */
+  #labor-pivot-wrap{width:100%;margin-top:12px;border-top:1px solid #2a3760;padding-top:12px;overflow-x:auto;}
+  #labor-pivot-wrap h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--hero-muted);}
+  table#labor-pivot-table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px;}
+  table#labor-pivot-table th{text-align:left;padding:6px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--hero-muted);border-bottom:1px solid #2a3760;white-space:nowrap;}
+  table#labor-pivot-table td{padding:6px 10px;border-bottom:1px solid #1c2748;color:var(--hero-text);white-space:nowrap;}
+  table#labor-pivot-table tr:last-child td{border-bottom:none;}
+  table#labor-pivot-table td.note{color:var(--hero-muted);padding:10px;white-space:normal;}
+  table#labor-pivot-table td.pos{color:#7be3a4;} table#labor-pivot-table td.neg{color:#ff9b9b;}
 
   #board-grid{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start;}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;}
@@ -224,21 +286,87 @@
     <section id="board-view">
       <div id="shift-bar">
         <div class="title-row">
-          <h2 class="hero-title">Dynamic Throughput &amp; Labor Allocation</h2>
+          <h2 class="hero-title">Labor Pivot Planner <span class="hero-sub" id="shift-period-label"></span></h2>
           <div class="field">
             <label for="shift-date">Shift date</label>
             <input type="date" id="shift-date">
           </div>
           <button class="btn secondary" id="clear-assignments-btn" title="Fixes anyone stuck 'assigned' from the duplicate-segment bug">Reset today's assignments</button>
         </div>
-        <div class="shift-stat">Shift progress <b id="stat-progress">0%</b></div>
-        <div class="shift-stat">Pack-out so far (last import) <b id="stat-outbound">0</b></div>
-        <div class="shift-stat" title="Combined goal &times; shift progress % &mdash; where you SHOULD be by now">Expected by now (Pack) <b id="stat-expected">0</b></div>
-        <div class="shift-stat" title="Pack-out so far vs Expected by now &mdash; are you behind/ahead RIGHT NOW">Actual vs Expected (Pack) <b id="stat-pace-now">0%</b></div>
-        <div class="shift-stat">Projected EOS total (Pack) <b id="stat-projected">0</b></div>
-        <div class="shift-stat">Combined goal (Pack) <b id="stat-goal">0</b></div>
-        <div class="shift-stat" title="Projected EOS total vs Combined goal &mdash; on pace to hit goal BY END OF SHIFT">EOS pace (Pack) <b id="stat-pace">0%</b></div>
-        <div class="shift-progress-bar"><div id="shift-progress-fill" style="width:0%"></div></div>
+
+        <div id="pivot-status-banner" class="no-shift">LOADING&hellip;</div>
+
+        <div id="pivot-card-grid">
+          <div class="pivot-card">
+            <div class="pivot-card-label">Actual (Pack-out so far)</div>
+            <div class="pivot-card-value white" id="pv-actual">&mdash;</div>
+            <div class="pivot-card-sub" id="pv-actual-sub">From last import</div>
+          </div>
+          <div class="pivot-card">
+            <div class="pivot-card-label">Ideal Target (Now)</div>
+            <div class="pivot-card-value accent" id="pv-ideal">&mdash;</div>
+            <div class="pivot-card-sub" id="pv-ideal-sub">&mdash; prod min elapsed</div>
+          </div>
+          <div class="pivot-card">
+            <div class="pivot-card-label">Variance</div>
+            <div class="pivot-card-value white" id="pv-variance">&mdash;</div>
+            <div class="pivot-card-sub" id="pv-variance-sub">units vs ideal</div>
+          </div>
+          <div class="pivot-card">
+            <div class="pivot-card-label">Current UPH</div>
+            <div class="pivot-card-value white" id="pv-uph">&mdash;</div>
+            <div class="pivot-card-sub" id="pv-uph-sub">Target: &mdash;</div>
+          </div>
+          <div class="pivot-card">
+            <div class="pivot-card-label">Proj. End-of-Shift</div>
+            <div class="pivot-card-value white" id="pv-projected">&mdash;</div>
+            <div class="pivot-card-sub" id="pv-projected-sub">Goal: &mdash;</div>
+          </div>
+          <div class="pivot-card">
+            <div class="pivot-card-label">Prod Min Left</div>
+            <div class="pivot-card-value white" id="pv-prodleft">&mdash;</div>
+            <div class="pivot-card-sub" id="pv-prodleft-sub">of &mdash; total</div>
+          </div>
+        </div>
+
+        <div id="pivot-analysis">
+          <div class="pivot-analysis-title">Labor Pivot Analysis (Combined Pack)</div>
+          <div class="pivot-analysis-grid">
+            <div class="pivot-item">
+              <div class="pivot-item-label">Units Behind / Ahead</div>
+              <div class="pivot-item-value white" id="pv-gap">&mdash;</div>
+            </div>
+            <div class="pivot-item">
+              <div class="pivot-item-label">People to Close Gap</div>
+              <div class="pivot-item-value accent" id="pv-people">&mdash;</div>
+            </div>
+            <div class="pivot-item">
+              <div class="pivot-item-label">Rate Needed (UPH)</div>
+              <div class="pivot-item-value white" id="pv-rate">&mdash;</div>
+            </div>
+            <div class="pivot-item">
+              <div class="pivot-item-label">Current Headcount</div>
+              <div class="pivot-item-value white" id="pv-hc">&mdash;</div>
+            </div>
+          </div>
+          <div class="pivot-rec nodata" id="pv-rec">Waiting for shift data&hellip;</div>
+        </div>
+
+        <div id="shift-schedule-bar-wrap">
+          <div class="sched-title" id="sched-title">Shift Schedule</div>
+          <div class="sched-bar" id="sched-bar"></div>
+          <div class="sched-labels" id="sched-labels"></div>
+        </div>
+
+        <div id="labor-pivot-wrap">
+          <h3>By Function &mdash; recommended headcount moves</h3>
+          <table id="labor-pivot-table">
+            <thead>
+              <tr><th>Function</th><th>Assigned</th><th>Actual</th><th>Ideal (Now)</th><th>Variance</th><th>Current UPH</th><th>Projected EOS</th><th>Goal</th><th>Recommendation</th></tr>
+            </thead>
+            <tbody id="labor-pivot-body"></tbody>
+          </table>
+        </div>
       </div>
 
       <div id="board-grid">
@@ -1058,6 +1186,15 @@ function renderBoard() {
   const wrap = document.getElementById("stations-wrap");
   wrap.innerHTML = "";
   let totalProjected = 0, totalGoal = 0;
+  // Combined-Pack accumulators for the hero card/analysis box below — every Pack (315) occupant,
+  // whether or not their specific station has its own goal set (headcount/live-UPH should reflect
+  // who's actually assigned to Pack right now, not just goal-bearing stations).
+  let packHeadcount = 0, packUphSum = 0;
+
+  // Labor Pivot accumulator, keyed by functionKey — aggregates across every station that shares
+  // a function (normally just one, since each bucket function is a single drop zone, but this
+  // stays correct if that ever changes). Filled inside the station loop below, rendered after it.
+  const pivotByFn = {};
 
   // Each column is its own vertical stack (see #stations-wrap/.floor-col CSS note above) so
   // a zone's row within a column depends only on that column's own content, not other columns'.
@@ -1183,7 +1320,38 @@ function renderBoard() {
       if (st.tranType === PACKOUT_TRAN_TYPE) {
         totalProjected += projectedUnits;
         if (goal) totalGoal += goal.targetUnits;
+        packHeadcount += occupants.length;
+        packUphSum += occupants.reduce((s, o) => {
+          const a = associates.find(x => x.id === o.associateId);
+          const perf = a ? avgUPH(a.id, st.functionKey) : null;
+          return s + (perf != null ? perf : st.setUPH);
+        }, 0);
       }
+
+      // Labor Pivot: every function WITH a goal set today feeds the planner, not just Pack —
+      // unlike the hero stat bar above, this recommends headcount moves shift-wide.
+      if (goal) {
+        const actualTotal = occupants.reduce((s, o) => s + actualUnitsToday(o.associateId, st.functionKey), 0);
+        const uphSum = occupants.reduce((s, o) => {
+          const a = associates.find(x => x.id === o.associateId);
+          const perf = a ? avgUPH(a.id, st.functionKey) : null;
+          return s + (perf != null ? perf : st.setUPH);
+        }, 0);
+        const key = st.functionKey;
+        if (!pivotByFn[key]) {
+          pivotByFn[key] = {
+            label: FUNCTIONS[key] ? FUNCTIONS[key].name : st.name,
+            targetUnits: 0, actual: 0, projected: 0, headcount: 0, uphSum: 0, fallbackUPH: st.setUPH
+          };
+        }
+        const row = pivotByFn[key];
+        row.targetUnits += goal.targetUnits;
+        row.actual += actualTotal;
+        row.projected += projectedUnits;
+        row.headcount += occupants.length;
+        row.uphSum += uphSum;
+      }
+
       zoneGrid.appendChild(card);
     });
 
@@ -1192,56 +1360,327 @@ function renderBoard() {
 
   Object.keys(colEls).sort((a, b) => a - b).forEach(n => wrap.appendChild(colEls[n]));
 
-  // ---- Hero stat bar ----
-  document.getElementById("stat-projected").textContent = Math.round(totalProjected);
-  document.getElementById("stat-goal").textContent = Math.round(totalGoal);
-
-  // EOS pace: Projected EOS total vs Combined goal — "will Pack finish the shift on target."
-  const paceEl = document.getElementById("stat-pace");
-  if (totalGoal > 0) {
-    const pace = ((totalProjected - totalGoal) / totalGoal) * 100;
-    paceEl.textContent = (pace >= 0 ? "+" : "") + pace.toFixed(1) + "%";
-    paceEl.className = pace >= 0 ? "pos" : "neg";
-  } else {
-    paceEl.textContent = "— (no goal set)";
-    paceEl.className = "";
-  }
-
   // Pack-out so far: snapshot from whatever's been imported for today's shiftDate (not live) —
   // Pack (315) Tran Qty only, which is why it's 1, 3, 5... per scan depending on order contents.
+  // This is the "Actual" the hero cards/status banner run on — live from the import, not typed in.
   const packoutSoFar = uphHistory
     .filter(h => h.shiftDate === currentShiftDate && h.tranType === PACKOUT_TRAN_TYPE)
     .reduce((s, h) => s + (h.units || 0), 0);
-  document.getElementById("stat-outbound").textContent = Math.round(packoutSoFar);
 
-  // Shift progress %, based on Settings > shift start/length (display only, doesn't affect projections).
+  // Clock minutes elapsed since shift start (feeds both the hero and the schedule bar below).
   const now = new Date();
   let shiftStart = new Date(currentShiftDate + "T00:00:00");
   shiftStart.setHours(Math.floor(appSettings.shiftStartHour), (appSettings.shiftStartHour % 1) * 60, 0, 0);
   let elapsedMs = now - shiftStart;
   if (elapsedMs < 0) elapsedMs += 24 * 3600000; // wrapped past midnight into the next calendar day
-  const pct = Math.max(0, Math.min(100, (elapsedMs / (appSettings.shiftLengthHours * 3600000)) * 100));
-  document.getElementById("stat-progress").textContent = Math.round(pct) + "%";
-  document.getElementById("shift-progress-fill").style.width = pct + "%";
+  const elapsedMinNow = elapsedMs / 60000;
 
-  // Expected by now / Actual vs Expected: Combined goal prorated to elapsed shift time (e.g. 90%
-  // through the shift, expected = 90% of goal), compared against Pack-out so far. Unlike EOS pace
-  // above (which only tells you whether the full-shift projection will land on target), this
-  // answers "am I behind RIGHT NOW" — useful early in a shift when EOS pace can look fine just
-  // because there's still time left to catch up.
-  const expectedSoFar = totalGoal * (pct / 100);
-  document.getElementById("stat-expected").textContent = Math.round(expectedSoFar);
-  const paceNowEl = document.getElementById("stat-pace-now");
-  if (totalGoal > 0 && expectedSoFar > 0) {
-    const paceNow = ((packoutSoFar - expectedSoFar) / expectedSoFar) * 100;
-    paceNowEl.textContent = (paceNow >= 0 ? "+" : "") + paceNow.toFixed(1) + "%";
-    paceNowEl.className = paceNow >= 0 ? "pos" : "neg";
+  renderPivotHero({
+    actual: packoutSoFar, totalGoal, totalProjected,
+    headcount: packHeadcount, uphSum: packUphSum,
+    elapsedMinNow
+  });
+  renderLaborPivot(elapsedMinNow, pivotByFn);
+  renderScheduleBar(elapsedMinNow);
+  renderTrendChart();
+}
+
+// Which non-production window (if any) elapsedMinNow currently falls in, matching the labeled
+// order shiftBreakOffsetsMinutes() always returns in: Startup, Break, Lunch, Break, Cleanup.
+function currentShiftPeriodLabel(elapsedMinNow) {
+  const labels = ["Startup", "Break", "Lunch", "Break", "Cleanup"];
+  const breaks = shiftBreakOffsetsMinutes();
+  for (let i = 0; i < breaks.length; i++) {
+    if (elapsedMinNow >= breaks[i].startMin && elapsedMinNow < breaks[i].endMin) return labels[i];
+  }
+  const nominalMin = appSettings.shiftLengthHours * 60;
+  const graceMin = (appSettings.shiftGraceHours || 0) * 60;
+  if (elapsedMinNow >= nominalMin + graceMin) return "Shift Complete";
+  if (elapsedMinNow >= nominalMin) return "Extra";
+  if (elapsedMinNow < 0) return "Pre-Shift";
+  return "Production";
+}
+
+/* ======================================================================
+   PIVOT HERO — status banner + 6 metric cards + Labor Pivot Analysis box, scoped to Combined
+   Pack (Small/Large/WOS Pack together), ported from the standalone LAS1 Live Shift Tracker
+   prototype's card layout and calcShiftMetrics()/labor-pivot math. Two deliberate adaptations
+   from the prototype (see the Labor Pivot table's own comment block below for the full
+   reasoning): this app's real A2 Night production-minute schedule is used instead of the
+   prototype's own (older, 4:30 PM-start) schedule, and "Actual" is read live from imported
+   Pack-out data instead of a typed-in number.
+   ====================================================================== */
+function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum, elapsedMinNow }) {
+  const periodLabel = currentShiftPeriodLabel(elapsedMinNow);
+  const periodEl = document.getElementById("shift-period-label");
+  if (periodEl) periodEl.textContent = periodLabel === "Production" ? "" : `— ${periodLabel.toUpperCase()}`;
+
+  const breaks = shiftBreakOffsetsMinutes();
+  const nominalProdMin = productionMinutesElapsed(appSettings.shiftLengthHours * 60, breaks);
+  const prodMinElapsed = Math.min(nominalProdMin, productionMinutesElapsed(Math.max(0, elapsedMinNow), breaks));
+  const remainingProdMin = Math.max(0, nominalProdMin - prodMinElapsed);
+  const prodHoursElapsed = prodMinElapsed / 60;
+  const prodHoursLeft = remainingProdMin / 60;
+
+  const idealNow = nominalProdMin > 0 ? totalGoal * (prodMinElapsed / nominalProdMin) : 0;
+  const variance = actual - idealNow;
+  const liveUph = prodHoursElapsed > 0 ? actual / prodHoursElapsed : 0;
+  const impliedTargetUph = nominalProdMin > 0 && totalGoal > 0 ? totalGoal / (nominalProdMin / 60) : 0;
+  const projected = prodHoursElapsed > 0 ? Math.round(actual + liveUph * prodHoursLeft) : Math.round(totalProjected);
+  const avgPersonUph = headcount > 0 ? uphSum / headcount : 0;
+
+  // ---- Cards ----
+  document.getElementById("pv-actual").textContent = Math.round(actual).toLocaleString();
+  document.getElementById("pv-ideal").textContent = Math.round(idealNow).toLocaleString();
+  document.getElementById("pv-ideal-sub").textContent = `${Math.round(prodMinElapsed)} prod min elapsed`;
+
+  const varEl = document.getElementById("pv-variance");
+  varEl.textContent = (variance >= 0 ? "+" : "") + Math.round(variance).toLocaleString();
+  varEl.className = "pivot-card-value " + (variance >= 0 ? "green" : "red");
+  document.getElementById("pv-variance-sub").textContent = variance >= 0 ? "ahead of ideal" : "behind ideal";
+
+  const uphEl = document.getElementById("pv-uph");
+  if (prodHoursElapsed > 0) {
+    uphEl.textContent = liveUph.toFixed(1);
+    uphEl.className = "pivot-card-value " + (liveUph >= impliedTargetUph * 0.95 ? "green" : liveUph >= impliedTargetUph * 0.85 ? "yellow" : "red");
   } else {
-    paceNowEl.textContent = "— (no goal set)";
-    paceNowEl.className = "";
+    uphEl.textContent = "—"; uphEl.className = "pivot-card-value white";
+  }
+  document.getElementById("pv-uph-sub").textContent = `Target: ${impliedTargetUph ? Math.round(impliedTargetUph) : "—"}`;
+
+  const projEl = document.getElementById("pv-projected");
+  if (totalGoal > 0) {
+    projEl.textContent = projected.toLocaleString();
+    projEl.className = "pivot-card-value " + (projected >= totalGoal ? "green" : projected >= totalGoal * 0.95 ? "yellow" : "red");
+  } else {
+    projEl.textContent = "—"; projEl.className = "pivot-card-value white";
+  }
+  document.getElementById("pv-projected-sub").textContent = `Goal: ${totalGoal ? Math.round(totalGoal).toLocaleString() : "—"}`;
+
+  document.getElementById("pv-prodleft").textContent = Math.round(remainingProdMin);
+  document.getElementById("pv-prodleft-sub").textContent = `of ${Math.round(nominalProdMin)} total`;
+
+  // ---- Labor Pivot Analysis box ----
+  const remainingUnits = Math.max(0, totalGoal - actual);
+  const rateNeeded = prodHoursLeft > 0 ? remainingUnits / prodHoursLeft : 0;
+  const extraPeople = avgPersonUph > 0 && prodHoursLeft > 0 ? Math.ceil((rateNeeded - liveUph) / avgPersonUph) : 0;
+
+  const gapEl = document.getElementById("pv-gap");
+  const peopleEl = document.getElementById("pv-people");
+  const rateEl = document.getElementById("pv-rate");
+  document.getElementById("pv-hc").textContent = headcount;
+  const recEl = document.getElementById("pv-rec");
+  const banner = document.getElementById("pivot-status-banner");
+
+  if (totalGoal <= 0) {
+    gapEl.textContent = "—"; peopleEl.textContent = "—"; rateEl.textContent = "—";
+    recEl.className = "pivot-rec nodata";
+    recEl.textContent = "No Combined Pack goal set for today — set Small/Large/WOS Pack goals in Admin → Shift Goals.";
+    banner.className = "no-shift";
+    banner.textContent = "NO PACK GOAL SET FOR TODAY";
+    return;
   }
 
-  renderTrendChart();
+  gapEl.textContent = (variance >= 0 ? "+" : "") + Math.round(variance).toLocaleString() + " units";
+  gapEl.className = "pivot-item-value " + (variance >= 0 ? "green" : "red");
+  rateEl.textContent = prodHoursLeft > 0 ? Math.round(rateNeeded) + " UPH needed" : "—";
+  rateEl.className = "pivot-item-value " + (rateNeeded <= liveUph * 1.05 ? "green" : "red");
+
+  if (periodLabel === "Shift Complete") {
+    banner.className = "no-shift";
+    banner.textContent = "SHIFT COMPLETE";
+  } else if (periodLabel === "Pre-Shift") {
+    banner.className = "no-shift";
+    banner.textContent = "SHIFT STARTS AT " + (function () {
+      const d = new Date(); d.setHours(Math.floor(appSettings.shiftStartHour), (appSettings.shiftStartHour % 1) * 60, 0, 0);
+      return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    })();
+  } else if (periodLabel !== "Production" && periodLabel !== "Extra") {
+    banner.className = "break-time";
+    banner.textContent = periodLabel.toUpperCase() + " — PROD TIMER PAUSED";
+  }
+
+  if (remainingUnits === 0) {
+    peopleEl.textContent = "Goal met"; peopleEl.className = "pivot-item-value green";
+    recEl.className = "pivot-rec ok";
+    recEl.textContent = `Combined Pack goal met — ${Math.round(actual).toLocaleString()} of ${Math.round(totalGoal).toLocaleString()} units.`;
+    if (!banner.className || banner.className === "no-shift") { banner.className = "ahead"; banner.textContent = `GOAL MET — ${Math.round(actual).toLocaleString()} UNITS`; }
+  } else if (prodHoursLeft <= 0) {
+    peopleEl.textContent = "—"; peopleEl.className = "pivot-item-value red";
+    recEl.className = "pivot-rec behind";
+    recEl.textContent = `Shift ending — short ${Math.round(remainingUnits).toLocaleString()} units of the ${Math.round(totalGoal).toLocaleString()} goal.`;
+    if (periodLabel === "Production" || periodLabel === "Extra") { banner.className = "behind"; banner.textContent = `SHORT ${Math.round(remainingUnits).toLocaleString()} UNITS AT SHIFT END`; }
+  } else if (prodHoursElapsed <= 0 || avgPersonUph <= 0) {
+    peopleEl.textContent = "—"; peopleEl.className = "pivot-item-value white";
+    recEl.className = "pivot-rec nodata";
+    recEl.textContent = "Waiting on import data / assigned associates to calculate a labor recommendation.";
+    if (periodLabel === "Production") { banner.className = "no-shift"; banner.textContent = "AWAITING DATA"; }
+  } else if (extraPeople <= 0) {
+    peopleEl.textContent = "On pace"; peopleEl.className = "pivot-item-value green";
+    recEl.className = "pivot-rec ok";
+    recEl.textContent = `Current Pack headcount (${headcount}) is sufficient. Needed rate: ${Math.round(rateNeeded)} UPH — current: ${liveUph.toFixed(1)} UPH.`;
+    if (periodLabel === "Production" || periodLabel === "Extra") {
+      const v = variance;
+      if (v >= 10) { banner.className = "ahead"; banner.textContent = `ON PACE | AHEAD BY ${Math.round(v).toLocaleString()} UNITS`; }
+      else { banner.className = "on-pace"; banner.textContent = `ON PACE | VARIANCE: ${v >= 0 ? "+" : ""}${Math.round(v).toLocaleString()}`; }
+    }
+  } else if (extraPeople <= 3) {
+    peopleEl.textContent = "+" + extraPeople + " people"; peopleEl.className = "pivot-item-value accent";
+    recEl.className = "pivot-rec warn";
+    recEl.textContent = `Consider adding ${extraPeople} associate${extraPeople > 1 ? "s" : ""} to Pack to recover pace. Need ${Math.round(rateNeeded)} UPH; currently tracking ${liveUph.toFixed(1)} UPH with ${headcount} on the floor.`;
+    if (periodLabel === "Production" || periodLabel === "Extra") { banner.className = "behind"; banner.textContent = `BEHIND BY ${Math.abs(Math.round(variance)).toLocaleString()} UNITS — PIVOT NEEDED`; }
+  } else {
+    peopleEl.textContent = "+" + extraPeople + " people"; peopleEl.className = "pivot-item-value red";
+    recEl.className = "pivot-rec behind";
+    recEl.textContent = `PIVOT NEEDED — add ${extraPeople} associates to hit ${Math.round(totalGoal).toLocaleString()} units. Required rate: ${Math.round(rateNeeded)} UPH vs current ${liveUph.toFixed(1)} UPH. Act now — ${Math.round(remainingProdMin)} prod min remaining.`;
+    if (periodLabel === "Production" || periodLabel === "Extra") { banner.className = "behind"; banner.textContent = `BEHIND BY ${Math.abs(Math.round(variance)).toLocaleString()} UNITS — PIVOT NEEDED`; }
+  }
+}
+
+/* ======================================================================
+   SHIFT SCHEDULE BAR — visual timeline of the real A2 Night schedule (Startup / Production /
+   Break / Lunch / Break / Cleanup / any grace-hour Extra), reusing shiftBreakOffsetsMinutes()
+   so it always matches the numbers the hero cards and Labor Pivot table are computed from.
+   ====================================================================== */
+function renderScheduleBar(elapsedMinNow) {
+  const barEl = document.getElementById("sched-bar");
+  const labelsEl = document.getElementById("sched-labels");
+  const titleEl = document.getElementById("sched-title");
+  if (!barEl) return;
+
+  const breaks = shiftBreakOffsetsMinutes();
+  const segLabels = ["STARTUP", "BREAK", "LUNCH", "BREAK", "CLNP"];
+  const segTypes = ["startup", "brk", "brk", "brk", "cleanup"];
+  const nominalMin = appSettings.shiftLengthHours * 60;
+  const graceMin = (appSettings.shiftGraceHours || 0) * 60;
+  const totalWindow = nominalMin + graceMin;
+
+  const segments = [];
+  let cursor = 0;
+  breaks.forEach((b, i) => {
+    if (b.startMin > cursor) segments.push({ start: cursor, end: b.startMin, type: "prod", lbl: "PRODUCTION" });
+    segments.push({ start: b.startMin, end: b.endMin, type: segTypes[i] || "brk", lbl: segLabels[i] || "BRK" });
+    cursor = b.endMin;
+  });
+  if (cursor < nominalMin) segments.push({ start: cursor, end: nominalMin, type: "prod", lbl: "PRODUCTION" });
+  if (graceMin > 0) segments.push({ start: nominalMin, end: totalWindow, type: "extra", lbl: "EXTRA" });
+
+  let html = "";
+  segments.forEach(seg => {
+    const pct = totalWindow > 0 ? ((seg.end - seg.start) / totalWindow * 100) : 0;
+    html += `<div class="sched-seg ${seg.type}" style="width:${pct.toFixed(3)}%">${pct > 4 ? seg.lbl : ""}</div>`;
+  });
+  const nowPct = totalWindow > 0 ? Math.min(Math.max(elapsedMinNow / totalWindow * 100, 0), 100) : 0;
+  barEl.innerHTML = html + `<div class="sched-now" style="left:${nowPct.toFixed(2)}%;"></div>`;
+
+  // Labels: shift start, each break's clock time, and the nominal end.
+  const shiftStartHour = appSettings.shiftStartHour;
+  function clockAt(minFromStart) {
+    const d = new Date();
+    d.setHours(Math.floor(shiftStartHour), (shiftStartHour % 1) * 60, 0, 0);
+    d.setMinutes(d.getMinutes() + minFromStart);
+    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+  const nonStartupCleanup = breaks.slice(1, -1);
+  labelsEl.innerHTML = [clockAt(0), ...nonStartupCleanup.map(b => clockAt(b.startMin)), clockAt(nominalMin)]
+    .map(t => `<span class="sched-lbl">${t}</span>`).join("");
+
+  if (titleEl) {
+    titleEl.textContent = `Shift Schedule — ${clockAt(0)} to ${clockAt(totalWindow)} (${Math.round(totalWindow)} min total)`;
+  }
+}
+
+/* ======================================================================
+   LABOR PIVOT PLANNER — ranks every function with a shift goal set today by how far behind
+   it is and recommends a headcount move. Ported from the standalone LAS1 Live Shift Tracker
+   prototype's calcShiftMetrics()/labor-pivot logic (Ideal Target / Variance / Live UPH /
+   Projected EOS / "extra people needed"), adapted two ways to fit this app instead of a
+   copy-paste:
+
+   1. Schedule: the prototype's own NON_PROD table (Startup 4:30-4:40 PM, breaks at 6:45 PM /
+      10:00 PM / 1:00 AM off a 4:30 PM shift start) is a different, older shift config than
+      A2 Night's actual schedule already wired into this app (5:00 PM start, breaks at 7:00 PM /
+      10:30 PM / 1:45 AM — see SHIFT_BREAKS/README). Production-minutes math here reuses THIS
+      app's shiftBreakOffsetsMinutes()/productionMinutesElapsed(), not the prototype's, so the
+      numbers stay correct for the real floor schedule.
+   2. Data source: the prototype ran on one manually-typed "Actual Units Packed" number against
+      flat Settings (Target UPH/Headcount/Goal typed in once). This app already has real,
+      per-function live data (Firestore-backed actualUnitsToday, per-associate avgUPH, admin-set
+      shift goals), so the same formulas run per function instead of once for the whole floor.
+
+   Per function, per the prototype's calcShiftMetrics():
+     idealNow (Ideal Target)  = goal units prorated to production time elapsed so far
+     variance                 = actual − idealNow
+     liveUph (Live UPH)       = actual ÷ production hours elapsed (this function's live team pace)
+     projected                = already computed station-by-station in renderBoard() above
+   Labor Pivot ("extra people needed"), the prototype's team-level pivot math carried over:
+     remaining units  = goal − actual (0 → "Goal met")
+     rate needed      = remaining units ÷ production hours left
+     avg UPH/person    = this function's assigned associates' avgUPH (their own trailing history,
+                          falling back to the station's Target UPH for anyone with none yet)
+     extra people      = ceil((rate needed − live UPH) ÷ avg UPH/person), floored at 0
+   Same 3-tier severity as the prototype: 0 extra → On pace; 1-3 → Consider adding; 4+ → PIVOT
+   NEEDED — using LIVE pace (not an assumed full-headcount rate) is what makes this "incorporate
+   the current data," per Hector's ask: a function whose people are underperforming their own
+   average shows up here even while its full-shift Projected EOS flag still reads ON TRACK.
+   ====================================================================== */
+function renderLaborPivot(elapsedMinNow, pivotByFn) {
+  const body = document.getElementById("labor-pivot-body");
+  if (!body) return;
+
+  const breaks = shiftBreakOffsetsMinutes();
+  const nominalProdMin = productionMinutesElapsed(appSettings.shiftLengthHours * 60, breaks);
+  const prodMinElapsed = Math.min(nominalProdMin, productionMinutesElapsed(elapsedMinNow, breaks));
+  const remainingProdMin = Math.max(0, nominalProdMin - prodMinElapsed);
+  const prodHoursElapsed = prodMinElapsed / 60;
+  const prodHoursLeft = remainingProdMin / 60;
+
+  const rows = Object.keys(pivotByFn)
+    .map(key => pivotByFn[key])
+    .filter(r => r.targetUnits > 0)
+    .sort((a, b) => Math.max(0, b.targetUnits - b.actual) - Math.max(0, a.targetUnits - a.actual));
+
+  body.innerHTML = "";
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="9" class="note">No shift goals set for today — set them in Admin &rarr; Shift Goals to see recommendations.</td></tr>`;
+    return;
+  }
+
+  rows.forEach(r => {
+    const remainingUnits  = Math.max(0, r.targetUnits - r.actual);
+    const avgUphPerPerson = r.headcount > 0 ? r.uphSum / r.headcount : r.fallbackUPH;
+    const idealNow        = nominalProdMin > 0 ? r.targetUnits * (prodMinElapsed / nominalProdMin) : 0;
+    const variance         = r.actual - idealNow;
+    const liveUph            = prodHoursElapsed > 0 ? r.actual / prodHoursElapsed : 0;
+
+    let rec, cls;
+    if (remainingUnits === 0) {
+      rec = "Goal met"; cls = "goal";
+    } else if (prodHoursLeft <= 0) {
+      rec = `Shift ending — short ${Math.round(remainingUnits)}`; cls = "bad";
+    } else if (prodHoursElapsed <= 0 || avgUphPerPerson <= 0) {
+      rec = "Not enough data yet"; cls = "warn";
+    } else {
+      const rateNeeded = remainingUnits / prodHoursLeft;
+      const extra = Math.ceil((rateNeeded - liveUph) / avgUphPerPerson);
+      if (extra <= 0) { rec = "On pace"; cls = "ok"; }
+      else if (extra <= 3) { rec = `Consider +${extra}`; cls = "warn"; }
+      else { rec = `PIVOT — need +${extra}`; cls = "bad"; }
+    }
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.label}</td>
+      <td>${r.headcount}</td>
+      <td>${Math.round(r.actual)}</td>
+      <td>${Math.round(idealNow)}</td>
+      <td class="${variance >= 0 ? "pos" : "neg"}">${variance >= 0 ? "+" : ""}${Math.round(variance)}</td>
+      <td>${liveUph ? liveUph.toFixed(1) : "—"}</td>
+      <td>${Math.round(r.projected)}</td>
+      <td>${Math.round(r.targetUnits)}</td>
+      <td><span class="flag ${cls}">${rec}</span></td>`;
+    body.appendChild(tr);
+  });
 }
 
 /* ======================================================================
