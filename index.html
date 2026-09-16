@@ -1070,19 +1070,24 @@ function actualUnitsToday(associateId, functionKey) {
     // Split (⑂) leaves an associate with TWO segments open at the same time, on purpose — so a
     // bucket's midpoint can match more than one of their segments here. Scan data can't say
     // which function those units actually came from during the overlap (same limitation as a
-    // shared Tran Type across different associates), so divide the bucket evenly across however
-    // many of the associate's own segments are open right then, rather than crediting the whole
-    // bucket to whichever segment happened to come first in Firestore's array order — that old
-    // behavior is what made a split associate's OTHER function show 0 units despite them actually
-    // working it. For the common case (no Split, exactly one open segment) this changes nothing.
+    // shared Tran Type across different associates), so divide the bucket by each open segment's
+    // own `hours` field — the number a supervisor typed in when they split the associate, and
+    // edits afterward if the real time allocation differs (same field the station card already
+    // shows/edits) — rather than crediting the whole bucket to whichever segment happened to come
+    // first in Firestore's array order (the old behavior) or splitting every overlap 50/50
+    // regardless of how the actual time was allocated. Falls back to an even weight only for a
+    // segment with no hours entered yet. For the common case (no Split, exactly one open segment)
+    // this still changes nothing — one segment always gets 100% of the bucket either way.
     const matchingSegs = mySegments.filter(s => {
       const startMs = s.startTime.toMillis ? s.startTime.toMillis() : s.startTime;
       const endMs = s.endTime ? (s.endTime.toMillis ? s.endTime.toMillis() : s.endTime) : nowMs;
       return midMs >= startMs && midMs < endMs;
     });
     if (!matchingSegs.length) return;
-    const matchesThisFn = matchingSegs.filter(s => s.functionKey === functionKey).length;
-    if (matchesThisFn) total += units * (matchesThisFn / matchingSegs.length);
+    const weightOf = s => (s.hoursInFunction != null && s.hoursInFunction > 0) ? s.hoursInFunction : 1;
+    const totalWeight = matchingSegs.reduce((s, seg) => s + weightOf(seg), 0);
+    const myWeight = matchingSegs.filter(s => s.functionKey === functionKey).reduce((s, seg) => s + weightOf(seg), 0);
+    if (myWeight && totalWeight) total += units * (myWeight / totalWeight);
   });
   return Math.round(total);
 }
