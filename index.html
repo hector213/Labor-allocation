@@ -102,17 +102,17 @@
   .pivot-rec.behind{background:#7f1d1d;color:#fca5a5;}
   .pivot-rec.nodata{background:#1e293b;color:var(--hero-muted);}
 
-  #shift-schedule-bar-wrap{width:100%;}
-  .sched-title{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:6px;}
-  .sched-bar{display:flex;height:24px;border-radius:6px;overflow:hidden;border:1px solid #2d4a7a;position:relative;}
-  .sched-seg{display:flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:700;letter-spacing:.04em;overflow:hidden;white-space:nowrap;}
+  #shift-schedule-bar-wrap{width:100%;margin-bottom:14px;}
+  .sched-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:7px;}
+  .sched-bar{display:flex;height:32px;border-radius:7px;overflow:hidden;border:1px solid #2d4a7a;position:relative;}
+  .sched-seg{display:flex;align-items:center;justify-content:center;font-size:.64rem;font-weight:700;letter-spacing:.04em;overflow:hidden;white-space:nowrap;}
   .sched-seg.prod{background:#1e4d8c;color:#93c5fd;}
   .sched-seg.startup, .sched-seg.cleanup{background:#374151;color:#d1d5db;}
   .sched-seg.brk{background:#78350f;color:#fde68a;}
   .sched-seg.extra{background:#1c1c2e;color:#4b5563;}
-  .sched-now{position:absolute;top:0;bottom:0;width:3px;background:var(--accent,#f5a623);z-index:2;border-radius:2px;}
-  .sched-labels{display:flex;justify-content:space-between;margin-top:4px;}
-  .sched-lbl{font-size:.6rem;color:var(--hero-muted);}
+  .sched-now{position:absolute;top:-3px;bottom:-3px;width:4px;background:#f5a623;z-index:2;border-radius:2px;box-shadow:0 0 6px 1px rgba(245,166,35,.7);}
+  .sched-labels{display:flex;justify-content:space-between;margin-top:5px;}
+  .sched-lbl{font-size:.64rem;color:var(--hero-muted);}
 
   /* Labor Pivot planner - lives inside #shift-bar, replacing what used to be just a stat strip.
      Ranks every function with a goal set today by how short-handed it is and recommends a
@@ -293,6 +293,12 @@
           <button class="btn secondary" id="clear-assignments-btn" title="Fixes anyone stuck 'assigned' from the duplicate-segment bug">Reset today's assignments</button>
         </div>
 
+        <div id="shift-schedule-bar-wrap">
+          <div class="sched-title" id="sched-title">Shift Schedule</div>
+          <div class="sched-bar" id="sched-bar"></div>
+          <div class="sched-labels" id="sched-labels"></div>
+        </div>
+
         <div id="pivot-status-banner" class="no-shift">LOADING&hellip;</div>
 
         <div class="pivot-section-title">Live &mdash; From Last Import</div>
@@ -359,12 +365,6 @@
             </div>
           </div>
           <div class="pivot-rec nodata" id="pv-rec">Waiting for shift data&hellip;</div>
-        </div>
-
-        <div id="shift-schedule-bar-wrap">
-          <div class="sched-title" id="sched-title">Shift Schedule</div>
-          <div class="sched-bar" id="sched-bar"></div>
-          <div class="sched-labels" id="sched-labels"></div>
         </div>
 
         <div id="labor-pivot-wrap" class="hidden">
