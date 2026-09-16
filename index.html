@@ -80,7 +80,8 @@
   #pivot-status-banner.break-time{background:#1e3a5f;color:#93c5fd;}
   #pivot-status-banner.goal{background:#1e3a5f;color:#93c5fd;}
 
-  #pivot-card-grid{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
+  .pivot-section-title{width:100%;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin:4px 0 2px;}
+  #pivot-card-grid, #pivot-projection-grid{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
   .pivot-card{background:#1a2f52;border:1px solid #2d4a7a;border-radius:10px;padding:12px 14px;}
   .pivot-card-label{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:5px;}
   .pivot-card-value{font-size:1.7rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
@@ -296,6 +297,7 @@
 
         <div id="pivot-status-banner" class="no-shift">LOADING&hellip;</div>
 
+        <div class="pivot-section-title">Live &mdash; From Last Import</div>
         <div id="pivot-card-grid">
           <div class="pivot-card">
             <div class="pivot-card-label">Actual (Pack-out so far)</div>
@@ -318,14 +320,23 @@
             <div class="pivot-card-sub" id="pv-uph-sub">Target: &mdash;</div>
           </div>
           <div class="pivot-card">
-            <div class="pivot-card-label">Proj. End-of-Shift</div>
+            <div class="pivot-card-label">Prod Min Left</div>
+            <div class="pivot-card-value white" id="pv-prodleft">&mdash;</div>
+            <div class="pivot-card-sub" id="pv-prodleft-sub">of &mdash; total</div>
+          </div>
+        </div>
+
+        <div class="pivot-section-title">Projected End-of-Shift</div>
+        <div id="pivot-projection-grid">
+          <div class="pivot-card">
+            <div class="pivot-card-label">Projected (Live Pace)</div>
             <div class="pivot-card-value white" id="pv-projected">&mdash;</div>
             <div class="pivot-card-sub" id="pv-projected-sub">Goal: &mdash;</div>
           </div>
           <div class="pivot-card">
-            <div class="pivot-card-label">Prod Min Left</div>
-            <div class="pivot-card-value white" id="pv-prodleft">&mdash;</div>
-            <div class="pivot-card-sub" id="pv-prodleft-sub">of &mdash; total</div>
+            <div class="pivot-card-label">Projected (Assigned UPH)</div>
+            <div class="pivot-card-value white" id="pv-projected-assigned">&mdash;</div>
+            <div class="pivot-card-sub" id="pv-projected-assigned-sub">Based on who's on the floor now</div>
           </div>
         </div>
 
@@ -1426,7 +1437,10 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
   const variance = actual - idealNow;
   const liveUph = prodHoursElapsed > 0 ? actual / prodHoursElapsed : 0;
   const impliedTargetUph = nominalProdMin > 0 && totalGoal > 0 ? totalGoal / (nominalProdMin / 60) : 0;
-  const projected = prodHoursElapsed > 0 ? Math.round(actual + liveUph * prodHoursLeft) : Math.round(totalProjected);
+  // Live-pace projection only extrapolates once there's a pace to extrapolate from (liveUph is 0
+  // before then, so this naturally reduces to just "actual") — it no longer borrows totalProjected
+  // as a placeholder now that totalProjected has its own dedicated "Projected (Assigned UPH)" card.
+  const projected = Math.round(actual + liveUph * prodHoursLeft);
   const avgPersonUph = headcount > 0 ? uphSum / headcount : 0;
 
   // ---- Cards ----
@@ -1456,6 +1470,24 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
     projEl.textContent = "—"; projEl.className = "pivot-card-value white";
   }
   document.getElementById("pv-projected-sub").textContent = `Goal: ${totalGoal ? Math.round(totalGoal).toLocaleString() : "—"}`;
+
+  // Projected (Assigned UPH): sum of each currently-assigned Pack associate's OWN avgUPH ×
+  // hoursInFunction — the same per-occupant math the station cards' "Projected total" already
+  // uses (see renderBoard()'s station loop / totalProjected), just rolled up to Combined Pack.
+  // Distinct from "Projected (Live Pace)" above, which extrapolates from the team's observed
+  // pace so far today — this one answers "if today's assigned roster works their planned hours
+  // at their own average rate, what do we land on," independent of how the shift has gone so far.
+  const projAssignedEl = document.getElementById("pv-projected-assigned");
+  const roundedAssigned = Math.round(totalProjected);
+  if (totalGoal > 0) {
+    projAssignedEl.textContent = roundedAssigned.toLocaleString();
+    projAssignedEl.className = "pivot-card-value " + (roundedAssigned >= totalGoal ? "green" : roundedAssigned >= totalGoal * 0.95 ? "yellow" : "red");
+  } else {
+    projAssignedEl.textContent = roundedAssigned ? roundedAssigned.toLocaleString() : "—";
+    projAssignedEl.className = "pivot-card-value white";
+  }
+  document.getElementById("pv-projected-assigned-sub").textContent =
+    headcount > 0 ? `${headcount} assigned to Pack now` : "No one assigned to Pack yet";
 
   document.getElementById("pv-prodleft").textContent = Math.round(remainingProdMin);
   document.getElementById("pv-prodleft-sub").textContent = `of ${Math.round(nominalProdMin)} total`;
