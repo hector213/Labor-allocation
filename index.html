@@ -201,8 +201,10 @@
   .occupant .who .uph{color:var(--muted);white-space:nowrap;flex-shrink:0;}
   .occupant .actual-units{color:var(--muted);font-size:11px;margin-top:-3px;}
   .occupant .actual-units b{color:var(--text);}
-  .occupant .controls{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .occupant .controls{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
   .occupant .hrs{width:56px;padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;}
+  .occupant .since-label{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);white-space:nowrap;}
+  .occupant .since{padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;width:88px;}
   .occupant button.remove{border:1px solid var(--bad);background:none;color:var(--bad);cursor:pointer;font-size:11px;line-height:1.4;padding:3px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0;}
   .occupant button.remove:hover{background:var(--bad);color:#fff;}
   .occupant button.split{border:1px solid var(--accent);background:none;color:var(--accent);cursor:pointer;font-size:11px;line-height:1.4;padding:3px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0;}
@@ -2167,6 +2169,26 @@ function associateCard(a, currentFunctionKey) {
   return el;
 }
 
+// Maps an <input type="time"> value ("HH:MM", 24h) onto today's actual shift date/time,
+// rolling to the next calendar day for the portion of an overnight shift that falls after
+// midnight — same rollover rule used for shiftStart elsewhere in this file. Lets a supervisor
+// correct a segment's startTime/endTime to when a move REALLY happened on the floor, instead of
+// whatever moment they happened to be clicking in the app.
+function timeInputToTimestamp(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const d = new Date(currentShiftDate + "T00:00:00");
+  d.setHours(h, m, 0, 0);
+  const shiftStartHour = appSettings.shiftStartHour;
+  const startH = Math.floor(shiftStartHour), startM = Math.round((shiftStartHour % 1) * 60);
+  if (h * 60 + m < startH * 60 + startM) d.setDate(d.getDate() + 1); // past-midnight portion of the shift
+  return firebase.firestore.Timestamp.fromDate(d);
+}
+function timestampToTimeInputValue(ts) {
+  if (!ts) return "";
+  const d = ts.toMillis ? new Date(ts.toMillis()) : new Date(ts);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 function occupantRow(seg, a, uph, hrs, functionKey) {
   const row = document.createElement("div");
   row.className = "occupant";
@@ -2178,6 +2200,7 @@ function occupantRow(seg, a, uph, hrs, functionKey) {
     <div class="who">${nameHtml}<span class="uph">(${uph.toFixed(1)} UPH)</span></div>
     <div class="actual-units">Actual: <b>${actualUnits}</b> units</div>
     <div class="controls">
+      <label class="since-label">Since <input class="since" type="time" value="${timestampToTimeInputValue(seg.startTime)}" title="Correct when this segment actually started, if it doesn't match when you updated the board" draggable="false"></label>
       <input class="hrs" type="number" step="0.25" value="${hrs}" title="Hours in function" draggable="false">
       <button class="split" type="button" draggable="false" title="Also assign to a second function at the same time">⑂ Split</button>
       <button class="remove" type="button" draggable="false" title="Return to pool">✕ Remove</button>
@@ -2187,8 +2210,36 @@ function occupantRow(seg, a, uph, hrs, functionKey) {
   // gets read as "start dragging the row" instead of "click the button." Bail out of the drag
   // entirely when it's starting from one of those controls so their click/change still fires.
   row.addEventListener("dragstart", e => {
-    if (e.target.closest(".remove, .hrs, .split")) { e.preventDefault(); return; }
+    if (e.target.closest(".remove, .hrs, .split, .since")) { e.preventDefault(); return; }
     e.dataTransfer.setData("text/plain", JSON.stringify({ aid: seg.associateId, sid: seg.id }));
+  });
+  // Segment startTime is normally stamped at whatever moment someone clicked Split/dragged them
+  // in the app — which can lag well behind when the move actually happened on the floor. This
+  // lets a supervisor correct it after the fact so unit attribution (actualUnitsToday, which
+  // matches each 30-min bucket's midpoint against this exact window) lines up with reality.
+  row.querySelector(".since").addEventListener("change", async e => {
+    const val = e.target.value;
+    if (!val) return;
+    const newStart = timeInputToTimestamp(val);
+    const segRef = db.collection("assignments").doc(currentShiftDate).collection("segments");
+    await segRef.doc(seg.id).update({ startTime: newStart });
+
+    // If this associate has exactly one OTHER segment still open right now, it's almost always
+    // their Split counterpart — the function they were in before this move, still sitting open
+    // because Split doesn't auto-close anything. Offer to close it at this same corrected time,
+    // turning what's been tracked as a simultaneous split into a clean sequential move: once the
+    // two segments no longer overlap, attribution no longer needs to guess/blend between them at
+    // all for this associate going forward.
+    const others = segments.filter(s => s.associateId === seg.associateId && !s.endTime && s.id !== seg.id);
+    if (others.length === 1) {
+      const other = others[0];
+      const otherLabel = FUNCTIONS[other.functionKey] ? FUNCTIONS[other.functionKey].name : other.functionKey;
+      if (confirm(`Also close their ${otherLabel} segment at this same time (${val})? This turns the split into a clean move instead of an ongoing simultaneous split.`)) {
+        const otherStartMs = other.startTime ? (other.startTime.toMillis ? other.startTime.toMillis() : other.startTime) : newStart.toMillis();
+        const hours = Math.max(0, (newStart.toMillis() - otherStartMs) / 3600000);
+        await segRef.doc(other.id).update({ endTime: newStart, hoursInFunction: Math.round(hours * 100) / 100 });
+      }
+    }
   });
   row.querySelector(".hrs").addEventListener("change", e => {
     const newHours = parseFloat(e.target.value) || 0;
