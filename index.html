@@ -136,6 +136,8 @@
   .occupant .who{display:flex;align-items:center;gap:6px;min-width:0;}
   .occupant .who .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;}
   .occupant .who .uph{color:var(--muted);white-space:nowrap;flex-shrink:0;}
+  .occupant .actual-units{color:var(--muted);font-size:11px;margin-top:-3px;}
+  .occupant .actual-units b{color:var(--text);}
   .occupant .controls{display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .occupant .hrs{width:56px;padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;}
   .occupant button.remove{border:1px solid var(--bad);background:none;color:var(--bad);cursor:pointer;font-size:11px;line-height:1.4;padding:3px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0;}
@@ -146,6 +148,7 @@
   .flag.ok{background:var(--ok-bg);color:var(--ok);}
   .flag.warn{background:var(--warn-bg);color:var(--warn);}
   .flag.bad{background:var(--bad-bg);color:var(--bad);}
+  .flag.goal{background:#e4ecfd;color:var(--accent-dark);}
   .proj-line{font-size:12px;color:var(--muted);margin-top:4px;}
 
   #ai-fab{position:fixed;right:22px;bottom:22px;width:54px;height:54px;border-radius:50%;background:var(--hero-bg2);color:#fff;border:none;box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:20px;cursor:pointer;}
@@ -872,6 +875,19 @@ function avgUPH(associateId, functionKey) {
   return sum / hist.length;
 }
 
+// Actual units this associate has posted TODAY for this function's Tran Type (not an average,
+// not projected — the real running count from the day's import), for the occupant card's
+// "Actual" line and the station card's Actual total. Same Tran Type caveat as everywhere else:
+// a function that shares its Tran Type with others (e.g. OP/MOD/Walkie/WOS Pick all on 301)
+// can't be told apart from scan data alone, so this is that associate's combined units across
+// all functions sharing the Tran Type, not strictly "just this one."
+function actualUnitsToday(associateId, functionKey) {
+  const fn = FUNCTIONS[functionKey];
+  if (!fn) return 0;
+  const rec = uphHistory.find(h => h.associateId === associateId && h.tranType === fn.tranType && h.shiftDate === currentShiftDate);
+  return rec ? (rec.units || 0) : 0;
+}
+
 function trendFor(associateId, functionKey) {
   const fn = FUNCTIONS[functionKey];
   const hist = historyFor(associateId, fn.tranType);
@@ -890,6 +906,16 @@ function trendFor(associateId, functionKey) {
 
 function goalFor(functionKey) {
   return shiftGoalsToday.find(g => g.functionKey === functionKey) || null;
+}
+
+// Station card status: GOAL MET once actual units posted today already reach the target
+// (regardless of pace — the work is done), otherwise ON TRACK if the current staffing/UPH is
+// projected to reach the target by end of shift, otherwise BEHIND. Replaces the old 3-tier
+// ok/warn/bad ("near target") scheme with exactly these 3 states.
+function stationStatus(actualTotal, projectedUnits, targetUnits) {
+  if (targetUnits > 0 && actualTotal >= targetUnits) return { cls: "goal", label: "GOAL MET" };
+  if (!(targetUnits > 0) || projectedUnits >= targetUnits) return { cls: "ok", label: "ON TRACK" };
+  return { cls: "bad", label: "BEHIND" };
 }
 
 // trainedRoles is the current field; defaultRole is kept as a fallback for anything saved
@@ -1045,14 +1071,19 @@ function renderBoard() {
         // stopped working: the button still LOOKED right, it just had zero listeners left.
         if (occupants.length) {
           const uphNow = occupants[0] ? (associates.find(x=>x.id===occupants[0].associateId) ? (avgUPH(occupants[0].associateId, st.functionKey) ?? st.setUPH) : st.setUPH) : st.setUPH;
-          const f = uphNow >= st.setUPH ? "ok" : uphNow >= st.setUPH * 0.85 ? "warn" : "bad";
+          const actualTotal = occupants.reduce((s, o) => s + actualUnitsToday(o.associateId, st.functionKey), 0);
           const projLine = document.createElement("div");
           projLine.className = "proj-line";
           projLine.textContent = `Projected total: ${Math.round(projectedUnits)} units (${uphNow.toFixed(1)} UPH avg)`;
+          const actualLine = document.createElement("div");
+          actualLine.className = "proj-line";
+          actualLine.textContent = `Actual total: ${Math.round(actualTotal)} units`;
+          const status = stationStatus(actualTotal, projectedUnits, goal ? goal.targetUnits : 0);
           const flag = document.createElement("span");
-          flag.className = `flag ${f}`;
-          flag.textContent = f === "ok" ? "ON TRACK" : f === "warn" ? "NEAR TARGET" : "DEFICIT";
+          flag.className = `flag ${status.cls}`;
+          flag.textContent = status.label;
           card.appendChild(projLine);
+          card.appendChild(actualLine);
           card.appendChild(flag);
         }
       } else {
@@ -1075,16 +1106,20 @@ function renderBoard() {
         // Same reasoning as the slot branch above: append real nodes, never `card.innerHTML +=`
         // after the dropZone/occupantRow nodes are already attached, or their listeners vanish.
         if (occupants.length) {
+          const actualTotal = occupants.reduce((s, o) => s + actualUnitsToday(o.associateId, st.functionKey), 0);
           const projLine = document.createElement("div");
           projLine.className = "proj-line";
           projLine.textContent = `Projected total: ${Math.round(projectedUnits)} units`;
+          const actualLine = document.createElement("div");
+          actualLine.className = "proj-line";
+          actualLine.textContent = `Actual total: ${Math.round(actualTotal)} units`;
           card.appendChild(projLine);
+          card.appendChild(actualLine);
           if (goal) {
-            const ratio = projectedUnits / goal.targetUnits;
-            const f = ratio >= 1 ? "ok" : ratio >= 0.85 ? "warn" : "bad";
+            const status = stationStatus(actualTotal, projectedUnits, goal.targetUnits);
             const flag = document.createElement("span");
-            flag.className = `flag ${f}`;
-            flag.textContent = f === "ok" ? "ON TRACK" : f === "warn" ? "NEAR TARGET" : "DEFICIT";
+            flag.className = `flag ${status.cls}`;
+            flag.textContent = status.label;
             card.appendChild(flag);
           }
         }
@@ -1583,8 +1618,10 @@ function occupantRow(seg, a, uph, hrs, functionKey) {
   row.draggable = true;
   row.dataset.associateId = seg.associateId;
   const nameHtml = a ? `${avatarHTML(a, functionKey)}<span class="name">${a.name || a.employeeId}</span>` : `<span class="name">(unknown)</span>`;
+  const actualUnits = a ? actualUnitsToday(a.id, functionKey) : 0;
   row.innerHTML = `
     <div class="who">${nameHtml}<span class="uph">(${uph.toFixed(1)} UPH)</span></div>
+    <div class="actual-units">Actual: <b>${actualUnits}</b> units</div>
     <div class="controls">
       <input class="hrs" type="number" step="0.25" value="${hrs}" title="Hours in function" draggable="false">
       <button class="split" type="button" draggable="false" title="Also assign to a second function at the same time">⑂ Split</button>
