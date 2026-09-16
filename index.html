@@ -1067,12 +1067,22 @@ function actualUnitsToday(associateId, functionKey) {
     const units = b.units || 0;
     if (!units) return;
     const midMs = shiftStartMs + (i + 0.5) * 30 * 60000;
-    const seg = mySegments.find(s => {
+    // Split (⑂) leaves an associate with TWO segments open at the same time, on purpose — so a
+    // bucket's midpoint can match more than one of their segments here. Scan data can't say
+    // which function those units actually came from during the overlap (same limitation as a
+    // shared Tran Type across different associates), so divide the bucket evenly across however
+    // many of the associate's own segments are open right then, rather than crediting the whole
+    // bucket to whichever segment happened to come first in Firestore's array order — that old
+    // behavior is what made a split associate's OTHER function show 0 units despite them actually
+    // working it. For the common case (no Split, exactly one open segment) this changes nothing.
+    const matchingSegs = mySegments.filter(s => {
       const startMs = s.startTime.toMillis ? s.startTime.toMillis() : s.startTime;
       const endMs = s.endTime ? (s.endTime.toMillis ? s.endTime.toMillis() : s.endTime) : nowMs;
       return midMs >= startMs && midMs < endMs;
     });
-    if (seg && seg.functionKey === functionKey) total += units;
+    if (!matchingSegs.length) return;
+    const matchesThisFn = matchingSegs.filter(s => s.functionKey === functionKey).length;
+    if (matchesThisFn) total += units * (matchesThisFn / matchingSegs.length);
   });
   return Math.round(total);
 }
