@@ -173,6 +173,8 @@
   .role-tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px;}
   .role-tag{font-size:10px;background:#eef1f6;color:var(--muted);border-radius:8px;padding:1px 6px;}
   .ojt-tag{font-size:9px;font-weight:700;background:#fff3d6;color:#8a5a00;border:1px solid #f2c66d;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle;white-space:nowrap;}
+  .occupant .ojt-row{margin-top:-3px;}
+  .occupant .ojt-row .ojt-tag{margin-left:0;}
   .trend-up{color:var(--ok);} .trend-down{color:var(--bad);} .trend-flat{color:var(--muted);}
   #pool-list.dragover, .station-slot.dragover, .station-bucket .bucket-drop.dragover{outline:2px dashed var(--accent);outline-offset:2px;}
 
@@ -2212,7 +2214,8 @@ function occupantRow(seg, a, uph, hrs, functionKey) {
   // `hours` field below, and scaled down further by the OJT ramp % if they're in training)
   // instead - same numbers that already feed the station's Projected total.
   row.innerHTML = `
-    <div class="who">${nameHtml}<span class="uph">(${uph.toFixed(1)} UPH)</span>${ojtBadge}</div>
+    <div class="who">${nameHtml}<span class="uph">(${uph.toFixed(1)} UPH)</span></div>
+    ${ojtBadge ? `<div class="ojt-row">${ojtBadge}</div>` : ""}
     <div class="controls">
       <input class="hrs" type="number" step="0.25" value="${hrs}" title="Hours in function" draggable="false">
       <button class="split" type="button" draggable="false" title="Also assign to a second function at the same time">⑂ Split</button>
