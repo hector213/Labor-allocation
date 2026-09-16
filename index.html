@@ -184,7 +184,7 @@
      height even though OP/MOD Pick above them were short. With independent column stacks,
      Replen/Consolidation sit right under OP/MOD Pick's own height, not Pack's. */
   #stations-wrap{display:flex;align-items:flex-start;gap:18px 24px;}
-  .floor-col{display:flex;flex-direction:column;gap:18px;width:268px;flex:none;}
+  .floor-col{display:flex;flex-direction:column;gap:18px;width:230px;flex:none;}
   .zone-block{margin-bottom:0;}
   .zone-header{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;border-left:4px solid var(--accent);padding-left:8px;margin-bottom:8px;}
   .station-card{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--slot-bg);}
@@ -199,8 +199,8 @@
      bucket (Small Pack, Large Pack, Walkie Pick, etc.) stacks several of these in a ~230px-wide
      card, and cramming avatar+name+UPH+hours+button onto one line there wraps unpredictably. */
   .occupant{display:flex;flex-direction:column;gap:6px;background:#fff;border:1px solid var(--border);border-radius:6px;padding:7px 8px;font-size:12px;}
-  .occupant .who{display:flex;align-items:center;gap:6px;min-width:0;}
-  .occupant .who .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;}
+  .occupant .who{display:flex;align-items:flex-start;gap:6px;min-width:0;}
+  .occupant .who .name{overflow-wrap:anywhere;white-space:normal;min-width:0;flex:1;}
   .occupant .who .uph{color:var(--muted);white-space:nowrap;flex-shrink:0;}
   .occupant .controls{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
   .occupant .hrs{width:56px;padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;}
