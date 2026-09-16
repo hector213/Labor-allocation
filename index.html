@@ -65,7 +65,7 @@
   .shift-progress-bar > div{height:100%;background:#4c8bff;}
   #shift-bar .hero-sub{font-size:12px;font-weight:500;color:var(--hero-muted);margin-left:10px;}
 
-  /* Labor Pivot hero — status banner + metric cards + analysis box, ported from the standalone
+  /* Labor Pivot hero - status banner + metric cards + analysis box, ported from the standalone
      LAS1 Live Shift Tracker prototype's visual design, scoped to Combined Pack (the same
      aggregate the old flat stat strip covered) since that's the one number small/large/WOS Pack
      already roll up into. Actual is LIVE from import data (Pack-out so far), not typed in. */
@@ -114,7 +114,7 @@
   .sched-labels{display:flex;justify-content:space-between;margin-top:4px;}
   .sched-lbl{font-size:.6rem;color:var(--hero-muted);}
 
-  /* Labor Pivot planner — lives inside #shift-bar, replacing what used to be just a stat strip.
+  /* Labor Pivot planner - lives inside #shift-bar, replacing what used to be just a stat strip.
      Ranks every function with a goal set today by how short-handed it is and recommends a
      headcount move, using live actual units (actualUnitsToday) and remaining PRODUCTION minutes
      (shiftBreakOffsetsMinutes/productionMinutesElapsed, same break schedule as the trend chart). */
@@ -176,7 +176,7 @@
   #pool-list.dragover, .station-slot.dragover, .station-bucket .bucket-drop.dragover{outline:2px dashed var(--accent);outline-offset:2px;}
 
   /* Fixed 4-column floor layout, but each column is its own independent flex stack (not a
-     shared CSS grid row) — a plain grid sizes row 1 to the TALLEST zone in that row (Pack,
+     shared CSS grid row) - a plain grid sizes row 1 to the TALLEST zone in that row (Pack,
      with 2 stations), which pushed Replen/Consolidation down to start below Pack's full
      height even though OP/MOD Pick above them were short. With independent column stacks,
      Replen/Consolidation sit right under OP/MOD Pick's own height, not Pack's. */
@@ -199,12 +199,8 @@
   .occupant .who{display:flex;align-items:center;gap:6px;min-width:0;}
   .occupant .who .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;}
   .occupant .who .uph{color:var(--muted);white-space:nowrap;flex-shrink:0;}
-  .occupant .actual-units{color:var(--muted);font-size:11px;margin-top:-3px;}
-  .occupant .actual-units b{color:var(--text);}
   .occupant .controls{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
   .occupant .hrs{width:56px;padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;}
-  .occupant .since-label{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);white-space:nowrap;}
-  .occupant .since{padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;width:88px;}
   .occupant button.remove{border:1px solid var(--bad);background:none;color:var(--bad);cursor:pointer;font-size:11px;line-height:1.4;padding:3px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0;}
   .occupant button.remove:hover{background:var(--bad);color:#fff;}
   .occupant button.split{border:1px solid var(--accent);background:none;color:var(--accent);cursor:pointer;font-size:11px;line-height:1.4;padding:3px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0;}
@@ -240,7 +236,7 @@
   .note{font-size:12px;color:var(--muted);background:#f7f9fb;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:14px;}
 
   /* Certs picker: a small "Add Certs"/"Certs" button opens this modal instead of a cramped
-     multi-select — check the functions someone's trained/certified on, Save writes them all
+     multi-select - check the functions someone's trained/certified on, Save writes them all
      at once as that associate's trainedRoles. */
   .certs-btn{background:#fff;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;white-space:nowrap;}
   .certs-btn:hover{background:#f2f5f9;}
@@ -396,7 +392,7 @@
       </div>
 
     </section>
-    <button id="ai-fab" title="AI Recommendation — planned for Phase 3">✦</button>
+    <button id="ai-fab" title="AI Recommendation - planned for Phase 3">✦</button>
 
     <!-- ---------- SHIFT TREND VIEW ---------- -->
     <!-- Shift Trend: Actual vs Ideal Target cumulative units across the shift, like the
@@ -437,7 +433,7 @@
     <!-- ---------- ASSOCIATE UPH VIEW ---------- -->
     <!-- Same Actual vs Ideal Target cumulative-line idea as the Shift Trend tab, scoped to one
          associate + one function. Ideal here is a UPH RATE target (the function's Target UPH,
-         Admin > Stations), not a fixed daily unit goal, since there's no per-associate goal —
+         Admin > Stations), not a fixed daily unit goal, since there's no per-associate goal -
          see renderAssocTrendChart(). -->
     <section id="assoc-trend-view" class="hidden">
       <div class="panel" id="assoc-trend-panel">
@@ -472,7 +468,7 @@
           <div class="assoc-trend-chart-wrap">
             <canvas id="assoc-trend-chart" height="90"></canvas>
           </div>
-          <!-- Hour-by-hour breakdown: actual units scanned in each clock hour, not an average —
+          <!-- Hour-by-hour breakdown: actual units scanned in each clock hour, not an average -
                same idea as the per-associate hourly columns in the Shift Cost Sheet. Built from
                the same assocTrend bucket data as the chart, just summed in pairs of half-hour
                buckets instead of accumulated. See renderAssocTrendChart(). -->
@@ -666,13 +662,13 @@
 </div>
 
 <!-- Split picker modal: an occupant's "Split" button opens this to add a SECOND, concurrent
-     station assignment for them without closing their current one(s) — both stay active at
+     station assignment for them without closing their current one(s) - both stay active at
      once, each with its own editable hours, and each station's count/UPH stays separate since
      they're just two independent segments. See openSplitModal() in the script. -->
 <div class="modal-overlay hidden" id="split-modal">
   <div class="modal-box">
     <h3>Split into another function</h3>
-    <div class="note" id="split-note">Adds a second, concurrent assignment — their current one stays active too. Set each function's hours afterward on its own card.</div>
+    <div class="note" id="split-note">Adds a second, concurrent assignment - their current one stays active too. Set each function's hours afterward on its own card.</div>
     <div class="certs-list" id="split-list"></div>
     <div class="modal-actions">
       <button class="btn secondary" id="split-cancel-btn">Cancel</button>
@@ -702,7 +698,7 @@ const db = firebase.firestore();
    FUNCTION / STATION DEFINITIONS
    tranType maps to the code(s) used in your transaction export.
    type: 'bucket' = one drop-zone with a configurable capacity (Pick/Replen/Consolidation, and
-         Pack as of this version) — defaultCapacity seeds the starting number of slots; edit
+         Pack as of this version) - defaultCapacity seeds the starting number of slots; edit
          the real number in Admin > Stations per your actual floor headcount.
          'slot' = a fixed physical one-associate station. No longer used by default (Pack used
          to be modeled this way, one card per physical station), but still fully supported by
@@ -710,8 +706,8 @@ const db = firebase.firestore();
    ====================================================================== */
 const FUNCTIONS = {
   // Pack used to be individual one-person "slot" stations (8 Small Pack, 6 Large Pack, 1 Large
-  // Pack Cubbies). Now a bucket like Walkie Pick — one drop zone per size, configurable capacity,
-  // any number of associates — with Cubbies folded into Large Pack rather than tracked separately.
+  // Pack Cubbies). Now a bucket like Walkie Pick - one drop zone per size, configurable capacity,
+  // any number of associates - with Cubbies folded into Large Pack rather than tracked separately.
   SMALL_PACK:          { name: "Small Pack",            tranType: "315", defaultUPH: 75,  type: "bucket", defaultCapacity: 8 },
   LARGE_PACK:          { name: "Large Pack",             tranType: "315", defaultUPH: 22,  type: "bucket", defaultCapacity: 7 },
   OP_PICK:             { name: "OP Pick",                tranType: "301", defaultUPH: 35,  type: "bucket", defaultCapacity: 6 },
@@ -720,17 +716,17 @@ const FUNCTIONS = {
   REPLEN_PICK:         { name: "Replenishment Pick",      tranType: "305", defaultUPH: 100, type: "bucket", defaultCapacity: 6 },
   REPLEN_PUT:          { name: "Replenishment Put",       tranType: "306", defaultUPH: 100, type: "bucket", defaultCapacity: 6 },
   // Cubby Outsort was the same work as Large/Small Consolidation, so it's gone as its own
-  // function — both Consolidations now carry its Tran Type (311), which also means historical
+  // function - both Consolidations now carry its Tran Type (311), which also means historical
   // import can finally populate real UPH for them (defaultUPH below is still a starting guess
   // until enough import history builds up real averages).
   LARGE_CONSOLIDATION: { name: "Large Consolidation",     tranType: "311", defaultUPH: 50,  type: "bucket", defaultCapacity: 4 },
   SMALL_CONSOLIDATION: { name: "Small Consolidation",     tranType: "311", defaultUPH: 50,  type: "bucket", defaultCapacity: 4 },
-  // New: Inbound. defaultUPH below is a placeholder like Consolidation's was — correct it in
+  // New: Inbound. defaultUPH below is a placeholder like Consolidation's was - correct it in
   // Admin > Stations once enough import history builds up a real average for Tran Types 151/212.
   INBOUND_RECEIVER:    { name: "Inbound Receiver",        tranType: "151", defaultUPH: 50,  type: "bucket", defaultCapacity: 6 },
   INBOUND_PUTAWAY:     { name: "Inbound Putaway",         tranType: "212", defaultUPH: 50,  type: "bucket", defaultCapacity: 6 },
   // WOS Pick shares Tran Type 301 with OP/MOD/Walkie Pick (same limitation the README already
-  // notes for those three — scan data alone can't tell them apart) and WOS Pack shares 315 with
+  // notes for those three - scan data alone can't tell them apart) and WOS Pack shares 315 with
   // Small/Large Pack, so its units also flow into the "Pack-out so far" stat automatically.
   WOS_PICK:            { name: "WOS Pick",                 tranType: "301", defaultUPH: 50,  type: "bucket", defaultCapacity: 6 },
   WOS_PACK:            { name: "WOS Pack",                 tranType: "315", defaultUPH: 50,  type: "bucket", defaultCapacity: 6 }
@@ -739,7 +735,7 @@ const FUNCTIONS = {
 /* Default calc settings (overridden by /settings/appSettings once saved) */
 let appSettings = { avgUphWindowShifts: 15, trendRecentDays: 14, trendPriorDays: 14, shiftStartHour: 17, shiftLengthHours: 10.5, shiftGraceHours: 1, productionHoursPerShift: 9.16 };
 
-/* Zones — purely a visual grouping of stations on the Board (matches the floor-layout mockup).
+/* Zones - purely a visual grouping of stations on the Board (matches the floor-layout mockup).
    "column" pins a zone to a specific column in the 4-column floor grid so Replen/Consolidation
    land directly under OP Pick / MOD Pick rather than wherever they'd fall in source order. */
 const ZONES = [
@@ -753,7 +749,7 @@ const ZONES = [
   { label: "Inbound Zone",           functions: ["INBOUND_RECEIVER", "INBOUND_PUTAWAY"],           column: 4 }
 ];
 
-/* Tran Type counted toward the "Pack-out so far" stat — Pack completions only (315), since that's
+/* Tran Type counted toward the "Pack-out so far" stat - Pack completions only (315), since that's
    the number that varies with items-per-order (1, 3, 5...) and is what gets compared against
    the Shift Cost Sheet's Packs (315) units. */
 const PACKOUT_TRAN_TYPE = "315";
@@ -782,9 +778,9 @@ let assocTrendChartInstance = null;
 /* ======================================================================
    SHIFT DATE / WINDOW HELPERS
    Ported to match the actual Overnight_Daily Power Query exactly: a single FIXED window,
-   Time >= shiftStartHour (5:00 PM) OR Time <= shiftMaxEndHour (4:30 AM) — every night, no
+   Time >= shiftStartHour (5:00 PM) OR Time <= shiftMaxEndHour (4:30 AM) - every night, no
    per-night "did we run the extra hour" detection. (An earlier version of this file tried to
-   auto-detect that per night, but the real workbook doesn't — it just always includes up to
+   auto-detect that per night, but the real workbook doesn't - it just always includes up to
    4:30 AM, and on a night that wrapped up earlier there's simply nothing scanned in that
    trailing window, so it's harmless to always include.) Driven by Settings > shift
    start/length/grace so the boundary stays configurable (default 17 + 10.5 + 1 = 4:30 AM).
@@ -802,7 +798,7 @@ function todayShiftDateStr(d) {
   cutoff.setHours(Math.floor(end), (end % 1) * 60, 0, 0);
   const shiftDay = new Date(d);
   if (d <= cutoff) shiftDay.setDate(shiftDay.getDate() - 1);
-  // NOTE: deliberately NOT toISOString() here — that converts to UTC first, which shifts
+  // NOTE: deliberately NOT toISOString() here - that converts to UTC first, which shifts
   // the calendar-date label whenever the browser's local timezone isn't UTC (e.g. Las Vegas
   // is UTC-7 in September, close enough to the 5 PM shift start that it split one continuous
   // overnight shift across two different UTC dates). Build the string from local getters so
@@ -820,11 +816,11 @@ function inShiftWindow(hh) {
 }
 
 /* ======================================================================
-   SHIFT TREND BUCKETS — 30-minute clock-time buckets spanning the shift window (e.g. 5:00 PM
+   SHIFT TREND BUCKETS - 30-minute clock-time buckets spanning the shift window (e.g. 5:00 PM
    to 4:30 AM), used by both the import pipeline (sums Tran Qty into buckets alongside the
    normal per-associate aggregation) and the Shift Trend chart. Mirrors the Packing_Trend
    sheet's half-hour rows, but by wall-clock time rather than the sheet's break-adjusted
-   "production minutes" schedule — see the note on the Shift Trend panel.
+   "production minutes" schedule - see the note on the Shift Trend panel.
    ====================================================================== */
 function shiftBucketList() {
   const start = appSettings.shiftStartHour;
@@ -832,13 +828,13 @@ function shiftBucketList() {
   const count = Math.round(totalHours / 0.5);
   const buckets = [];
   for (let i = 0; i < count; i++) {
-    // Label each bucket by the clock time at the END of its half-hour interval — bucket i's
+    // Label each bucket by the clock time at the END of its half-hour interval - bucket i's
     // cumulative value is the total accrued THROUGH that end time, so this makes a flat
     // (no-production) stretch on the chart visually line up with its real clock window, e.g.
     // the 10:30-11:00 PM lunch shows as flat between the "10:30 PM" and "11:00 PM" labels
     // instead of between "10:00 PM" and "10:30 PM". This is one bucket ahead of the Shift Cost
     // Sheet's own row labels (its "10:00 PM" row is our "10:30 PM" point) if you're ever
-    // comparing the two side by side — the underlying numbers are identical either way, only
+    // comparing the two side by side - the underlying numbers are identical either way, only
     // the label text differs.
     const hh = (start + (i + 1) * 0.5) % 24;
     const h24 = Math.floor(hh);
@@ -994,7 +990,7 @@ function watchShift(shiftDate) {
     snap.docs.forEach(d => { shiftTrendDocs[d.data().tranType] = d.data(); });
     renderTrendChart();
   });
-  // Every associate's per-Tran-Type bucket data for today, in one query — this is what lets the
+  // Every associate's per-Tran-Type bucket data for today, in one query - this is what lets the
   // Board attribute a shared-Tran-Type function's occupant/station "Actual" figures to the
   // right function (see actualUnitsToday()) instead of showing that associate's whole-day Tran
   // Type total on every function card that shares it (e.g. Small Pack AND Large Pack, both 315).
@@ -1018,7 +1014,7 @@ document.getElementById("shift-date").addEventListener("change", e => watchShift
    ====================================================================== */
 function historyFor(associateId, tranType) {
   if (!tranType) return [];
-  // Only records with a reliable UPH rate (>=10 min of scan spread) count toward averaging —
+  // Only records with a reliable UPH rate (>=10 min of scan spread) count toward averaging -
   // a record with reliable:false (or an older import from before that flag existed, which
   // still has a numeric uph) still has real units, just not a trustworthy per-hour rate.
   return uphHistory
@@ -1035,12 +1031,12 @@ function avgUPH(associateId, functionKey) {
 }
 
 // Actual units this associate has posted TODAY for THIS function specifically (not an average,
-// not projected — the real running count from the day's import), for the occupant card's
+// not projected - the real running count from the day's import), for the occupant card's
 // "Actual" line and the station card's Actual total.
 //
 // Scan data only tells us the Tran Type, not which of possibly several functions sharing that
 // Tran Type it happened at (Small/Large/WOS Pack all post as 315; OP/MOD/Walkie/WOS Pick all
-// post as 301) — so a flat "today's total for this Tran Type" would show the SAME number on
+// post as 301) - so a flat "today's total for this Tran Type" would show the SAME number on
 // every one of those function cards regardless of which one the associate is actually sitting
 // at right now, and would keep showing their old function's units even after they're moved
 // (this is exactly the bug Hector found: Talen Neel's units followed him from Large Pack to
@@ -1049,7 +1045,7 @@ function avgUPH(associateId, functionKey) {
 // import time) to whichever function his SEGMENT history says he was assigned to at that
 // half-hour, using each segment's real startTime/endTime, and only counts buckets whose
 // segment matches the function being asked about. Accuracy depends on assignments having been
-// moved in the app at roughly the times they actually happened — a bucket with no segment
+// moved in the app at roughly the times they actually happened - a bucket with no segment
 // covering its midpoint (e.g. still in the Talent Pool then) doesn't get attributed to anyone,
 // rather than guessed at.
 function actualUnitsToday(associateId, functionKey) {
@@ -1064,12 +1060,12 @@ function actualUnitsToday(associateId, functionKey) {
   const nowMs = Date.now();
   const mySegments = segments.filter(s => s.associateId === associateId && s.startTime);
 
-  // Fallback for a bucket that no segment covers at all — most often because the associate was
+  // Fallback for a bucket that no segment covers at all - most often because the associate was
   // already physically working before a supervisor got around to dragging their card onto the
   // board in the app, so their segment's startTime is later than when the scans actually
   // happened. Those units are still rightfully theirs; the only reason to withhold them is
   // genuine ambiguity about WHICH function they belong to. If every segment this associate has
-  // had today under this Tran Type points at the same single function, there's no ambiguity —
+  // had today under this Tran Type points at the same single function, there's no ambiguity -
   // attribute uncovered buckets to it. If they touched more than one such function today (a real
   // move, not just a late app assignment), leave uncovered buckets unattributed as before, same
   // as the shared-Tran-Type-across-different-associates limitation noted elsewhere in this file.
@@ -1085,17 +1081,17 @@ function actualUnitsToday(associateId, functionKey) {
     const units = b.units || 0;
     if (!units) return;
     const midMs = shiftStartMs + (i + 0.5) * 30 * 60000;
-    // Split (⑂) leaves an associate with TWO segments open at the same time, on purpose — so a
+    // Split (⑂) leaves an associate with TWO segments open at the same time, on purpose - so a
     // bucket's midpoint can match more than one of their segments here. Scan data can't say
     // which function those units actually came from during the overlap (same limitation as a
     // shared Tran Type across different associates), so divide the bucket by each open segment's
-    // own `hours` field — the number a supervisor typed in when they split the associate, and
+    // own `hours` field - the number a supervisor typed in when they split the associate, and
     // edits afterward if the real time allocation differs (same field the station card already
-    // shows/edits) — rather than crediting the whole bucket to whichever segment happened to come
+    // shows/edits) - rather than crediting the whole bucket to whichever segment happened to come
     // first in Firestore's array order (the old behavior) or splitting every overlap 50/50
     // regardless of how the actual time was allocated. Falls back to an even weight only for a
     // segment with no hours entered yet. For the common case (no Split, exactly one open segment)
-    // this still changes nothing — one segment always gets 100% of the bucket either way.
+    // this still changes nothing - one segment always gets 100% of the bucket either way.
     const matchingSegs = mySegments.filter(s => {
       const startMs = s.startTime.toMillis ? s.startTime.toMillis() : s.startTime;
       const endMs = s.endTime ? (s.endTime.toMillis ? s.endTime.toMillis() : s.endTime) : nowMs;
@@ -1133,12 +1129,11 @@ function goalFor(functionKey) {
   return shiftGoalsToday.find(g => g.functionKey === functionKey) || null;
 }
 
-// Station card status: GOAL MET once actual units posted today already reach the target
-// (regardless of pace — the work is done), otherwise ON TRACK if the current staffing/UPH is
-// projected to reach the target by end of shift, otherwise BEHIND. Replaces the old 3-tier
-// ok/warn/bad ("near target") scheme with exactly these 3 states.
-function stationStatus(actualTotal, projectedUnits, targetUnits) {
-  if (targetUnits > 0 && actualTotal >= targetUnits) return { cls: "goal", label: "GOAL MET" };
+// Station card status: ON TRACK if the current staffing/UPH is projected to reach the target
+// by end of shift, otherwise BEHIND. (Previously had a GOAL MET tier based on scan-based
+// "actual units posted today" - removed along with actual-unit tracking; projected-vs-target
+// is now the only signal driving this flag.)
+function stationStatus(projectedUnits, targetUnits) {
   if (!(targetUnits > 0) || projectedUnits >= targetUnits) return { cls: "ok", label: "ON TRACK" };
   return { cls: "bad", label: "BEHIND" };
 }
@@ -1152,7 +1147,7 @@ function rolesFor(a) {
 }
 
 /* ======================================================================
-   AVATAR HELPERS (initials + a stable color derived from the name —
+   AVATAR HELPERS (initials + a stable color derived from the name -
    no photo hosting needed)
    ====================================================================== */
 function initials(name) {
@@ -1176,7 +1171,7 @@ function avatarHTML(a, functionKey) {
    BOARD RENDER
    ====================================================================== */
 function renderBoard() {
-  if (!stations.length) { document.getElementById("stations-wrap").innerHTML = "<p class='note'>No stations yet — seed them from Admin &rarr; Stations.</p>"; }
+  if (!stations.length) { document.getElementById("stations-wrap").innerHTML = "<p class='note'>No stations yet - seed them from Admin &rarr; Stations.</p>"; }
 
   const activeByStation = {}; // stationId -> [segment]
   segments.filter(s => !s.endTime).forEach(s => {
@@ -1188,7 +1183,7 @@ function renderBoard() {
   // "who could I move to X" is answerable at a glance from any group.
   const assignedIds = new Set(segments.filter(s => !s.endTime).map(s => s.associateId));
   let pool = associates.filter(a => a.active !== false && !a.automated && !assignedIds.has(a.id));
-  // Search box filters by name or Employee Id — case-insensitive, matches anywhere in either.
+  // Search box filters by name or Employee Id - case-insensitive, matches anywhere in either.
   const term = poolSearchTerm.trim().toLowerCase();
   if (term) {
     pool = pool.filter(a =>
@@ -1217,11 +1212,11 @@ function renderBoard() {
   document.getElementById("pool-empty-note").classList.toggle("hidden", !(term && pool.length === 0));
   document.getElementById("pool-empty-term").textContent = poolSearchTerm.trim();
   // poolEl is a persistent DOM node (fetched once via getElementById), not recreated each
-  // render like the per-station dropZone divs are — so wiring it fresh on every renderBoard()
+  // render like the per-station dropZone divs are - so wiring it fresh on every renderBoard()
   // call (which fires on every Firestore snapshot: segments, stations, associates, goals,
   // uphHistory all trigger one) was stacking a new set of dragover/dragleave/drop listeners on
   // top of the old ones every time, forever. A single drop was firing handleDrop() once per
-  // accumulated listener — for a drop onto a station, that meant several duplicate segment
+  // accumulated listener - for a drop onto a station, that meant several duplicate segment
   // documents got created for the same move, and closing one via Remove left the others active,
   // so the associate never actually made it back to available. Wire it exactly once.
   if (!poolEl.dataset.wired) {
@@ -1233,12 +1228,12 @@ function renderBoard() {
   const wrap = document.getElementById("stations-wrap");
   wrap.innerHTML = "";
   let totalProjected = 0, totalGoal = 0;
-  // Combined-Pack accumulators for the hero card/analysis box below — every Pack (315) occupant,
+  // Combined-Pack accumulators for the hero card/analysis box below - every Pack (315) occupant,
   // whether or not their specific station has its own goal set (headcount/live-UPH should reflect
   // who's actually assigned to Pack right now, not just goal-bearing stations).
   let packHeadcount = 0, packUphSum = 0;
 
-  // Labor Pivot accumulator, keyed by functionKey — aggregates across every station that shares
+  // Labor Pivot accumulator, keyed by functionKey - aggregates across every station that shares
   // a function (normally just one, since each bucket function is a single drop zone, but this
   // stays correct if that ever changes). Filled inside the station loop below, rendered after it.
   const pivotByFn = {};
@@ -1297,27 +1292,22 @@ function renderBoard() {
         card.appendChild(dropZone);
         wireDropZone(dropZone, st);
 
-        // IMPORTANT: append real nodes here, never `card.innerHTML +=` — that serializes card's
+        // IMPORTANT: append real nodes here, never `card.innerHTML +=` - that serializes card's
         // *entire* existing content (including the dropZone/occupantRow just appended above,
         // with its click/drag listeners) to a string and reparses it into brand-new DOM nodes.
         // The markup comes back looking identical, but every JS-attached listener is gone,
-        // since listeners never serialize into HTML — which is exactly why Remove silently
+        // since listeners never serialize into HTML - which is exactly why Remove silently
         // stopped working: the button still LOOKED right, it just had zero listeners left.
         if (occupants.length) {
           const uphNow = occupants[0] ? (associates.find(x=>x.id===occupants[0].associateId) ? (avgUPH(occupants[0].associateId, st.functionKey) ?? st.setUPH) : st.setUPH) : st.setUPH;
-          const actualTotal = occupants.reduce((s, o) => s + actualUnitsToday(o.associateId, st.functionKey), 0);
           const projLine = document.createElement("div");
           projLine.className = "proj-line";
           projLine.textContent = `Projected total: ${Math.round(projectedUnits)} units (${uphNow.toFixed(1)} UPH avg)`;
-          const actualLine = document.createElement("div");
-          actualLine.className = "proj-line";
-          actualLine.textContent = `Actual total: ${Math.round(actualTotal)} units`;
-          const status = stationStatus(actualTotal, projectedUnits, goal ? goal.targetUnits : 0);
+          const status = stationStatus(projectedUnits, goal ? goal.targetUnits : 0);
           const flag = document.createElement("span");
           flag.className = `flag ${status.cls}`;
           flag.textContent = status.label;
           card.appendChild(projLine);
-          card.appendChild(actualLine);
           card.appendChild(flag);
         }
       } else {
@@ -1340,17 +1330,12 @@ function renderBoard() {
         // Same reasoning as the slot branch above: append real nodes, never `card.innerHTML +=`
         // after the dropZone/occupantRow nodes are already attached, or their listeners vanish.
         if (occupants.length) {
-          const actualTotal = occupants.reduce((s, o) => s + actualUnitsToday(o.associateId, st.functionKey), 0);
           const projLine = document.createElement("div");
           projLine.className = "proj-line";
           projLine.textContent = `Projected total: ${Math.round(projectedUnits)} units`;
-          const actualLine = document.createElement("div");
-          actualLine.className = "proj-line";
-          actualLine.textContent = `Actual total: ${Math.round(actualTotal)} units`;
           card.appendChild(projLine);
-          card.appendChild(actualLine);
           if (goal) {
-            const status = stationStatus(actualTotal, projectedUnits, goal.targetUnits);
+            const status = stationStatus(projectedUnits, goal.targetUnits);
             const flag = document.createElement("span");
             flag.className = `flag ${status.cls}`;
             flag.textContent = status.label;
@@ -1360,7 +1345,7 @@ function renderBoard() {
       }
 
       // "Projected EOS total" (and the goal/pace it's compared against) is meant to read as your
-      // pack-out projection specifically, not a mix of every function's units added together —
+      // pack-out projection specifically, not a mix of every function's units added together -
       // Pick/Replen/Outsort units aren't the same currency as Pack units, so summing them into
       // one number was misleading. Only Pack (315) stations feed the hero stat bar now; every
       // station still shows its own projected total/goal/flag on its own card either way.
@@ -1375,7 +1360,7 @@ function renderBoard() {
         }, 0);
       }
 
-      // Labor Pivot: every function WITH a goal set today feeds the planner, not just Pack —
+      // Labor Pivot: every function WITH a goal set today feeds the planner, not just Pack -
       // unlike the hero stat bar above, this recommends headcount moves shift-wide.
       if (goal) {
         const actualTotal = occupants.reduce((s, o) => s + actualUnitsToday(o.associateId, st.functionKey), 0);
@@ -1407,9 +1392,9 @@ function renderBoard() {
 
   Object.keys(colEls).sort((a, b) => a - b).forEach(n => wrap.appendChild(colEls[n]));
 
-  // Pack-out so far: snapshot from whatever's been imported for today's shiftDate (not live) —
+  // Pack-out so far: snapshot from whatever's been imported for today's shiftDate (not live) -
   // Pack (315) Tran Qty only, which is why it's 1, 3, 5... per scan depending on order contents.
-  // This is the "Actual" the hero cards/status banner run on — live from the import, not typed in.
+  // This is the "Actual" the hero cards/status banner run on - live from the import, not typed in.
   const packoutSoFar = uphHistory
     .filter(h => h.shiftDate === currentShiftDate && h.tranType === PACKOUT_TRAN_TYPE)
     .reduce((s, h) => s + (h.units || 0), 0);
@@ -1449,7 +1434,7 @@ function currentShiftPeriodLabel(elapsedMinNow) {
 }
 
 /* ======================================================================
-   PIVOT HERO — status banner + 6 metric cards + Labor Pivot Analysis box, scoped to Combined
+   PIVOT HERO - status banner + 6 metric cards + Labor Pivot Analysis box, scoped to Combined
    Pack (Small/Large/WOS Pack together), ported from the standalone LAS1 Live Shift Tracker
    prototype's card layout and calcShiftMetrics()/labor-pivot math. Two deliberate adaptations
    from the prototype (see the Labor Pivot table's own comment block below for the full
@@ -1460,7 +1445,7 @@ function currentShiftPeriodLabel(elapsedMinNow) {
 function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum, elapsedMinNow }) {
   const periodLabel = currentShiftPeriodLabel(elapsedMinNow);
   const periodEl = document.getElementById("shift-period-label");
-  if (periodEl) periodEl.textContent = periodLabel === "Production" ? "" : `— ${periodLabel.toUpperCase()}`;
+  if (periodEl) periodEl.textContent = periodLabel === "Production" ? "" : `- ${periodLabel.toUpperCase()}`;
 
   const breaks = shiftBreakOffsetsMinutes();
   const nominalProdMin = productionMinutesElapsed(appSettings.shiftLengthHours * 60, breaks);
@@ -1474,7 +1459,7 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
   const liveUph = prodHoursElapsed > 0 ? actual / prodHoursElapsed : 0;
   const impliedTargetUph = nominalProdMin > 0 && totalGoal > 0 ? totalGoal / (nominalProdMin / 60) : 0;
   // Live-pace projection only extrapolates once there's a pace to extrapolate from (liveUph is 0
-  // before then, so this naturally reduces to just "actual") — it no longer borrows totalProjected
+  // before then, so this naturally reduces to just "actual") - it no longer borrows totalProjected
   // as a placeholder now that totalProjected has its own dedicated "Projected (Assigned UPH)" card.
   const projected = Math.round(actual + liveUph * prodHoursLeft);
   const avgPersonUph = headcount > 0 ? uphSum / headcount : 0;
@@ -1494,24 +1479,24 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
     uphEl.textContent = liveUph.toFixed(1);
     uphEl.className = "pivot-card-value " + (liveUph >= impliedTargetUph * 0.95 ? "green" : liveUph >= impliedTargetUph * 0.85 ? "yellow" : "red");
   } else {
-    uphEl.textContent = "—"; uphEl.className = "pivot-card-value white";
+    uphEl.textContent = "-"; uphEl.className = "pivot-card-value white";
   }
-  document.getElementById("pv-uph-sub").textContent = `Target: ${impliedTargetUph ? Math.round(impliedTargetUph) : "—"}`;
+  document.getElementById("pv-uph-sub").textContent = `Target: ${impliedTargetUph ? Math.round(impliedTargetUph) : "-"}`;
 
   const projEl = document.getElementById("pv-projected");
   if (totalGoal > 0) {
     projEl.textContent = projected.toLocaleString();
     projEl.className = "pivot-card-value " + (projected >= totalGoal ? "green" : projected >= totalGoal * 0.95 ? "yellow" : "red");
   } else {
-    projEl.textContent = "—"; projEl.className = "pivot-card-value white";
+    projEl.textContent = "-"; projEl.className = "pivot-card-value white";
   }
-  document.getElementById("pv-projected-sub").textContent = `Goal: ${totalGoal ? Math.round(totalGoal).toLocaleString() : "—"}`;
+  document.getElementById("pv-projected-sub").textContent = `Goal: ${totalGoal ? Math.round(totalGoal).toLocaleString() : "-"}`;
 
   // Projected (Assigned UPH): sum of each currently-assigned Pack associate's OWN avgUPH ×
-  // hoursInFunction — the same per-occupant math the station cards' "Projected total" already
+  // hoursInFunction - the same per-occupant math the station cards' "Projected total" already
   // uses (see renderBoard()'s station loop / totalProjected), just rolled up to Combined Pack.
   // Distinct from "Projected (Live Pace)" above, which extrapolates from the team's observed
-  // pace so far today — this one answers "if today's assigned roster works their planned hours
+  // pace so far today - this one answers "if today's assigned roster works their planned hours
   // at their own average rate, what do we land on," independent of how the shift has gone so far.
   const projAssignedEl = document.getElementById("pv-projected-assigned");
   const roundedAssigned = Math.round(totalProjected);
@@ -1519,7 +1504,7 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
     projAssignedEl.textContent = roundedAssigned.toLocaleString();
     projAssignedEl.className = "pivot-card-value " + (roundedAssigned >= totalGoal ? "green" : roundedAssigned >= totalGoal * 0.95 ? "yellow" : "red");
   } else {
-    projAssignedEl.textContent = roundedAssigned ? roundedAssigned.toLocaleString() : "—";
+    projAssignedEl.textContent = roundedAssigned ? roundedAssigned.toLocaleString() : "-";
     projAssignedEl.className = "pivot-card-value white";
   }
   document.getElementById("pv-projected-assigned-sub").textContent =
@@ -1541,9 +1526,9 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
   const banner = document.getElementById("pivot-status-banner");
 
   if (totalGoal <= 0) {
-    gapEl.textContent = "—"; peopleEl.textContent = "—"; rateEl.textContent = "—";
+    gapEl.textContent = "-"; peopleEl.textContent = "-"; rateEl.textContent = "-";
     recEl.className = "pivot-rec nodata";
-    recEl.textContent = "No Combined Pack goal set for today — set Small/Large/WOS Pack goals in Admin → Shift Goals.";
+    recEl.textContent = "No Combined Pack goal set for today - set Small/Large/WOS Pack goals in Admin → Shift Goals.";
     banner.className = "no-shift";
     banner.textContent = "NO PACK GOAL SET FOR TODAY";
     return;
@@ -1551,7 +1536,7 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
 
   gapEl.textContent = (variance >= 0 ? "+" : "") + Math.round(variance).toLocaleString() + " units";
   gapEl.className = "pivot-item-value " + (variance >= 0 ? "green" : "red");
-  rateEl.textContent = prodHoursLeft > 0 ? Math.round(rateNeeded) + " UPH needed" : "—";
+  rateEl.textContent = prodHoursLeft > 0 ? Math.round(rateNeeded) + " UPH needed" : "-";
   rateEl.className = "pivot-item-value " + (rateNeeded <= liveUph * 1.05 ? "green" : "red");
 
   if (periodLabel === "Shift Complete") {
@@ -1565,28 +1550,28 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
     })();
   } else if (periodLabel !== "Production" && periodLabel !== "Extra") {
     banner.className = "break-time";
-    banner.textContent = periodLabel.toUpperCase() + " — PROD TIMER PAUSED";
+    banner.textContent = periodLabel.toUpperCase() + " - PROD TIMER PAUSED";
   }
 
   if (remainingUnits === 0) {
     peopleEl.textContent = "Goal met"; peopleEl.className = "pivot-item-value green";
     recEl.className = "pivot-rec ok";
-    recEl.textContent = `Combined Pack goal met — ${Math.round(actual).toLocaleString()} of ${Math.round(totalGoal).toLocaleString()} units.`;
-    if (!banner.className || banner.className === "no-shift") { banner.className = "ahead"; banner.textContent = `GOAL MET — ${Math.round(actual).toLocaleString()} UNITS`; }
+    recEl.textContent = `Combined Pack goal met - ${Math.round(actual).toLocaleString()} of ${Math.round(totalGoal).toLocaleString()} units.`;
+    if (!banner.className || banner.className === "no-shift") { banner.className = "ahead"; banner.textContent = `GOAL MET - ${Math.round(actual).toLocaleString()} UNITS`; }
   } else if (prodHoursLeft <= 0) {
-    peopleEl.textContent = "—"; peopleEl.className = "pivot-item-value red";
+    peopleEl.textContent = "-"; peopleEl.className = "pivot-item-value red";
     recEl.className = "pivot-rec behind";
-    recEl.textContent = `Shift ending — short ${Math.round(remainingUnits).toLocaleString()} units of the ${Math.round(totalGoal).toLocaleString()} goal.`;
+    recEl.textContent = `Shift ending - short ${Math.round(remainingUnits).toLocaleString()} units of the ${Math.round(totalGoal).toLocaleString()} goal.`;
     if (periodLabel === "Production" || periodLabel === "Extra") { banner.className = "behind"; banner.textContent = `SHORT ${Math.round(remainingUnits).toLocaleString()} UNITS AT SHIFT END`; }
   } else if (prodHoursElapsed <= 0 || avgPersonUph <= 0) {
-    peopleEl.textContent = "—"; peopleEl.className = "pivot-item-value white";
+    peopleEl.textContent = "-"; peopleEl.className = "pivot-item-value white";
     recEl.className = "pivot-rec nodata";
     recEl.textContent = "Waiting on import data / assigned associates to calculate a labor recommendation.";
     if (periodLabel === "Production") { banner.className = "no-shift"; banner.textContent = "AWAITING DATA"; }
   } else if (extraPeople <= 0) {
     peopleEl.textContent = "On pace"; peopleEl.className = "pivot-item-value green";
     recEl.className = "pivot-rec ok";
-    recEl.textContent = `Current Pack headcount (${headcount}) is sufficient. Needed rate: ${Math.round(rateNeeded)} UPH — current: ${liveUph.toFixed(1)} UPH.`;
+    recEl.textContent = `Current Pack headcount (${headcount}) is sufficient. Needed rate: ${Math.round(rateNeeded)} UPH - current: ${liveUph.toFixed(1)} UPH.`;
     if (periodLabel === "Production" || periodLabel === "Extra") {
       const v = variance;
       if (v >= 10) { banner.className = "ahead"; banner.textContent = `ON PACE | AHEAD BY ${Math.round(v).toLocaleString()} UNITS`; }
@@ -1596,17 +1581,17 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
     peopleEl.textContent = "+" + extraPeople + " people"; peopleEl.className = "pivot-item-value accent";
     recEl.className = "pivot-rec warn";
     recEl.textContent = `Consider adding ${extraPeople} associate${extraPeople > 1 ? "s" : ""} to Pack to recover pace. Need ${Math.round(rateNeeded)} UPH; currently tracking ${liveUph.toFixed(1)} UPH with ${headcount} on the floor.`;
-    if (periodLabel === "Production" || periodLabel === "Extra") { banner.className = "behind"; banner.textContent = `BEHIND BY ${Math.abs(Math.round(variance)).toLocaleString()} UNITS — PIVOT NEEDED`; }
+    if (periodLabel === "Production" || periodLabel === "Extra") { banner.className = "behind"; banner.textContent = `BEHIND BY ${Math.abs(Math.round(variance)).toLocaleString()} UNITS - PIVOT NEEDED`; }
   } else {
     peopleEl.textContent = "+" + extraPeople + " people"; peopleEl.className = "pivot-item-value red";
     recEl.className = "pivot-rec behind";
-    recEl.textContent = `PIVOT NEEDED — add ${extraPeople} associates to hit ${Math.round(totalGoal).toLocaleString()} units. Required rate: ${Math.round(rateNeeded)} UPH vs current ${liveUph.toFixed(1)} UPH. Act now — ${Math.round(remainingProdMin)} prod min remaining.`;
-    if (periodLabel === "Production" || periodLabel === "Extra") { banner.className = "behind"; banner.textContent = `BEHIND BY ${Math.abs(Math.round(variance)).toLocaleString()} UNITS — PIVOT NEEDED`; }
+    recEl.textContent = `PIVOT NEEDED - add ${extraPeople} associates to hit ${Math.round(totalGoal).toLocaleString()} units. Required rate: ${Math.round(rateNeeded)} UPH vs current ${liveUph.toFixed(1)} UPH. Act now - ${Math.round(remainingProdMin)} prod min remaining.`;
+    if (periodLabel === "Production" || periodLabel === "Extra") { banner.className = "behind"; banner.textContent = `BEHIND BY ${Math.abs(Math.round(variance)).toLocaleString()} UNITS - PIVOT NEEDED`; }
   }
 }
 
 /* ======================================================================
-   SHIFT SCHEDULE BAR — visual timeline of the real A2 Night schedule (Startup / Production /
+   SHIFT SCHEDULE BAR - visual timeline of the real A2 Night schedule (Startup / Production /
    Break / Lunch / Break / Cleanup / any grace-hour Extra), reusing shiftBreakOffsetsMinutes()
    so it always matches the numbers the hero cards and Labor Pivot table are computed from.
    ====================================================================== */
@@ -1654,12 +1639,12 @@ function renderScheduleBar(elapsedMinNow) {
     .map(t => `<span class="sched-lbl">${t}</span>`).join("");
 
   if (titleEl) {
-    titleEl.textContent = `Shift Schedule — ${clockAt(0)} to ${clockAt(totalWindow)} (${Math.round(totalWindow)} min total)`;
+    titleEl.textContent = `Shift Schedule - ${clockAt(0)} to ${clockAt(totalWindow)} (${Math.round(totalWindow)} min total)`;
   }
 }
 
 /* ======================================================================
-   LABOR PIVOT PLANNER — ranks every function with a shift goal set today by how far behind
+   LABOR PIVOT PLANNER - ranks every function with a shift goal set today by how far behind
    it is and recommends a headcount move. Ported from the standalone LAS1 Live Shift Tracker
    prototype's calcShiftMetrics()/labor-pivot logic (Ideal Target / Variance / Live UPH /
    Projected EOS / "extra people needed"), adapted two ways to fit this app instead of a
@@ -1668,7 +1653,7 @@ function renderScheduleBar(elapsedMinNow) {
    1. Schedule: the prototype's own NON_PROD table (Startup 4:30-4:40 PM, breaks at 6:45 PM /
       10:00 PM / 1:00 AM off a 4:30 PM shift start) is a different, older shift config than
       A2 Night's actual schedule already wired into this app (5:00 PM start, breaks at 7:00 PM /
-      10:30 PM / 1:45 AM — see SHIFT_BREAKS/README). Production-minutes math here reuses THIS
+      10:30 PM / 1:45 AM - see SHIFT_BREAKS/README). Production-minutes math here reuses THIS
       app's shiftBreakOffsetsMinutes()/productionMinutesElapsed(), not the prototype's, so the
       numbers stay correct for the real floor schedule.
    2. Data source: the prototype ran on one manually-typed "Actual Units Packed" number against
@@ -1688,7 +1673,7 @@ function renderScheduleBar(elapsedMinNow) {
                           falling back to the station's Target UPH for anyone with none yet)
      extra people      = ceil((rate needed − live UPH) ÷ avg UPH/person), floored at 0
    Same 3-tier severity as the prototype: 0 extra → On pace; 1-3 → Consider adding; 4+ → PIVOT
-   NEEDED — using LIVE pace (not an assumed full-headcount rate) is what makes this "incorporate
+   NEEDED - using LIVE pace (not an assumed full-headcount rate) is what makes this "incorporate
    the current data," per Hector's ask: a function whose people are underperforming their own
    average shows up here even while its full-shift Projected EOS flag still reads ON TRACK.
    ====================================================================== */
@@ -1710,7 +1695,7 @@ function renderLaborPivot(elapsedMinNow, pivotByFn) {
 
   body.innerHTML = "";
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="9" class="note">No shift goals set for today — set them in Admin &rarr; Shift Goals to see recommendations.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="9" class="note">No shift goals set for today - set them in Admin &rarr; Shift Goals to see recommendations.</td></tr>`;
     return;
   }
 
@@ -1725,7 +1710,7 @@ function renderLaborPivot(elapsedMinNow, pivotByFn) {
     if (remainingUnits === 0) {
       rec = "Goal met"; cls = "goal";
     } else if (prodHoursLeft <= 0) {
-      rec = `Shift ending — short ${Math.round(remainingUnits)}`; cls = "bad";
+      rec = `Shift ending - short ${Math.round(remainingUnits)}`; cls = "bad";
     } else if (prodHoursElapsed <= 0 || avgUphPerPerson <= 0) {
       rec = "Not enough data yet"; cls = "warn";
     } else {
@@ -1733,7 +1718,7 @@ function renderLaborPivot(elapsedMinNow, pivotByFn) {
       const extra = Math.ceil((rateNeeded - liveUph) / avgUphPerPerson);
       if (extra <= 0) { rec = "On pace"; cls = "ok"; }
       else if (extra <= 3) { rec = `Consider +${extra}`; cls = "warn"; }
-      else { rec = `PIVOT — need +${extra}`; cls = "bad"; }
+      else { rec = `PIVOT - need +${extra}`; cls = "bad"; }
     }
 
     const tr = document.createElement("tr");
@@ -1743,7 +1728,7 @@ function renderLaborPivot(elapsedMinNow, pivotByFn) {
       <td>${Math.round(r.actual)}</td>
       <td>${Math.round(idealNow)}</td>
       <td class="${variance >= 0 ? "pos" : "neg"}">${variance >= 0 ? "+" : ""}${Math.round(variance)}</td>
-      <td>${liveUph ? liveUph.toFixed(1) : "—"}</td>
+      <td>${liveUph ? liveUph.toFixed(1) : "-"}</td>
       <td>${Math.round(r.projected)}</td>
       <td>${Math.round(r.targetUnits)}</td>
       <td><span class="flag ${cls}">${rec}</span></td>`;
@@ -1752,18 +1737,18 @@ function renderLaborPivot(elapsedMinNow, pivotByFn) {
 }
 
 /* ======================================================================
-   SHIFT TREND CHART — Actual vs Ideal Target cumulative units across the shift, toggled
+   SHIFT TREND CHART - Actual vs Ideal Target cumulative units across the shift, toggled
    between Pack (315) and Pick (301). See shiftBucketList()/bucketIndexForHour() above and the
    import-time bucket aggregation in cleanRows()/the commit handler below for how
    shiftTrendDocs gets populated.
 
    The Ideal Target line spreads the Combined goal across PRODUCTION minutes only, just like the
-   Packing_Trend sheet — clock minutes inside the breaks/lunch/startup/cleanup below don't count,
+   Packing_Trend sheet - clock minutes inside the breaks/lunch/startup/cleanup below don't count,
    so the target line holds flat through each one instead of climbing. Pulled directly from a
    row-by-row export of the sheet's own Packing_Trend schedule (its "Prod Min Elapsed" column):
    a 10-minute Startup at the very top of the shift, the 3 named breaks below (fixed clock times
    per Hector, A2 Night Shift), and a 10-minute Cleanup in the last 10 minutes of the nominal
-   shift — 10 + 15 + 30 + 15 + 10 = 80 non-production minutes out of the 630-minute (10.5h)
+   shift - 10 + 15 + 30 + 15 + 10 = 80 non-production minutes out of the 630-minute (10.5h)
    nominal shift, landing on exactly 550 production minutes (9.1667h ≈ the 9.16h in Settings),
    matching the sheet's Prod Min Elapsed column exactly at every row that was checked against it.
    Edit SHIFT_BREAKS/STARTUP_MIN/CLEANUP_MIN below if the real schedule ever changes.
@@ -1798,7 +1783,7 @@ function shiftBreakOffsetsMinutes() {
 }
 
 // Clock minutes elapsed since shift start, minus whatever portion of that span fell inside a
-// non-production window — i.e. "production minutes," matching the spreadsheet's Prod Min
+// non-production window - i.e. "production minutes," matching the spreadsheet's Prod Min
 // Elapsed column exactly (no approximation/scaling needed now that Startup and Cleanup are
 // modeled explicitly instead of guessed at).
 function productionMinutesElapsed(elapsedMin, breaks) {
@@ -1822,7 +1807,7 @@ function renderTrendChart() {
   const canvas = document.getElementById("trend-chart");
   if (!canvas) return; // not rendered yet
   if (typeof Chart === "undefined") {
-    // Chart.js didn't load from the CDN (bad version pin, ad blocker, offline) — surface that
+    // Chart.js didn't load from the CDN (bad version pin, ad blocker, offline) - surface that
     // instead of silently leaving the chart blank with no clue why.
     const note = document.getElementById("trend-note");
     if (note) note.textContent = "Chart.js failed to load from the CDN, so the trend chart can't render. Check your internet connection or an ad blocker, then hard-refresh.";
@@ -1837,7 +1822,7 @@ function renderTrendChart() {
   }
 
   // Combined goal for whichever functions share this Tran Type (e.g. Small/Large/WOS Pack for
-  // 315; OP/MOD/Walkie/WOS Pick for 301) — same "Combined goal" concept as the hero stat bar,
+  // 315; OP/MOD/Walkie/WOS Pick for 301) - same "Combined goal" concept as the hero stat bar,
   // just generalized beyond Pack.
   const groupFnKeys = Object.keys(FUNCTIONS).filter(k => FUNCTIONS[k].tranType === selectedTrendTran);
   const dailyTarget = shiftGoalsToday
@@ -1849,7 +1834,7 @@ function renderTrendChart() {
   // climbing straight through a break.
   //
   // The goal should hit 100% at the end of the NOMINAL shift (shiftLengthHours), not the
-  // extended grace-hour window the bucket list displays — the grace hour is just buffer for
+  // extended grace-hour window the bucket list displays - the grace hour is just buffer for
   // days that run long, not part of every day's target. Whether "today" is one of those long
   // days isn't known in advance, so it's auto-detected from the imported data itself: if any
   // units have landed in a bucket past the nominal end, today ran into the extra hour, and the
@@ -1883,7 +1868,7 @@ function renderTrendChart() {
   const idealSoFar = idealCum[soFarIdx] || 0;
 
   document.getElementById("trend-actual").textContent = Math.round(actualSoFar);
-  document.getElementById("trend-ideal").textContent = dailyTarget > 0 ? Math.round(idealSoFar) : "— (no goal set)";
+  document.getElementById("trend-ideal").textContent = dailyTarget > 0 ? Math.round(idealSoFar) : "- (no goal set)";
   const varEl = document.getElementById("trend-variance");
   const badgeEl = document.getElementById("trend-pace-badge");
   if (dailyTarget > 0) {
@@ -1904,7 +1889,7 @@ function renderTrendChart() {
       badgeEl.className = "pace-badge " + state;
     }
   } else {
-    varEl.textContent = "—";
+    varEl.textContent = "-";
     varEl.className = "";
     if (badgeEl) { badgeEl.textContent = "No goal set"; badgeEl.className = "pace-badge none"; }
   }
@@ -1944,13 +1929,13 @@ function renderTrendChart() {
 }
 
 /* ======================================================================
-   ASSOCIATE UPH TREND — same Actual vs Ideal Target cumulative-line idea as the Shift Trend
+   ASSOCIATE UPH TREND - same Actual vs Ideal Target cumulative-line idea as the Shift Trend
    tab above, scoped to one associate + one function. The Ideal line here is a UPH RATE target
    (that function's Target UPH from Admin > Stations) spread across production minutes, rather
    than a fixed daily unit goal, since there's no per-associate daily goal the way there's a
    Combined goal for the team. Reads per-associate bucket docs from the `assocTrend` collection
    (doc id `${shiftDate}_${associateId}_${tranType}`), written at import time alongside the
-   team-level `shiftTrend` docs — see buildAssocTrendBuckets() near the import pipeline below.
+   team-level `shiftTrend` docs - see buildAssocTrendBuckets() near the import pipeline below.
    ====================================================================== */
 function populateAssocTrendFunctionDropdown() {
   const sel = document.getElementById("assoc-trend-function");
@@ -1980,7 +1965,7 @@ document.getElementById("assoc-trend-associate").addEventListener("change", () =
 document.getElementById("assoc-trend-function").addEventListener("change", () => watchAssocTrend());
 
 // Re-subscribes to the one assocTrend doc for the current shift date + selected associate +
-// selected function's Tran Type (docs are keyed by Tran Type, not function key — see the note
+// selected function's Tran Type (docs are keyed by Tran Type, not function key - see the note
 // on the panel about functions that share a Tran Type). No-ops (and clears the chart) until
 // both an associate and a function are picked.
 function watchAssocTrend() {
@@ -2034,7 +2019,7 @@ function renderAssocTrendChart() {
 
   // Ideal here is a rate target rather than a fixed daily total, but it should still stop
   // accruing at the end of the NOMINAL shift for an associate who didn't work the extra grace
-  // hour — same auto-detect as the team Shift Trend tab: if this associate has actual units
+  // hour - same auto-detect as the team Shift Trend tab: if this associate has actual units
   // posted in a bucket past the nominal end, they ran into that hour today, so the target line
   // keeps accruing at the same rate through it; otherwise it holds flat at the nominal-shift
   // total instead of implying they should keep producing during an hour they didn't work.
@@ -2119,7 +2104,7 @@ function renderAssocTrendChart() {
 }
 
 // Hour-by-hour breakdown table next to the chart: actual units scanned in each clock hour for
-// this associate/function, not an average — pairs up the same 30-min buckets the chart uses
+// this associate/function, not an average - pairs up the same 30-min buckets the chart uses
 // (the shift starts on the hour, so every pair lines up to a clean hour except the last leftover
 // half-hour bucket, which gets its own row). Pass buckets/bucketUnits as null to show the
 // "select associate & function" placeholder instead.
@@ -2169,38 +2154,19 @@ function associateCard(a, currentFunctionKey) {
   return el;
 }
 
-// Maps an <input type="time"> value ("HH:MM", 24h) onto today's actual shift date/time,
-// rolling to the next calendar day for the portion of an overnight shift that falls after
-// midnight — same rollover rule used for shiftStart elsewhere in this file. Lets a supervisor
-// correct a segment's startTime/endTime to when a move REALLY happened on the floor, instead of
-// whatever moment they happened to be clicking in the app.
-function timeInputToTimestamp(hhmm) {
-  const [h, m] = hhmm.split(":").map(Number);
-  const d = new Date(currentShiftDate + "T00:00:00");
-  d.setHours(h, m, 0, 0);
-  const shiftStartHour = appSettings.shiftStartHour;
-  const startH = Math.floor(shiftStartHour), startM = Math.round((shiftStartHour % 1) * 60);
-  if (h * 60 + m < startH * 60 + startM) d.setDate(d.getDate() + 1); // past-midnight portion of the shift
-  return firebase.firestore.Timestamp.fromDate(d);
-}
-function timestampToTimeInputValue(ts) {
-  if (!ts) return "";
-  const d = ts.toMillis ? new Date(ts.toMillis()) : new Date(ts);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
 function occupantRow(seg, a, uph, hrs, functionKey) {
   const row = document.createElement("div");
   row.className = "occupant";
   row.draggable = true;
   row.dataset.associateId = seg.associateId;
   const nameHtml = a ? `${avatarHTML(a, functionKey)}<span class="name">${a.name || a.employeeId}</span>` : `<span class="name">(unknown)</span>`;
-  const actualUnits = a ? actualUnitsToday(a.id, functionKey) : 0;
+  // Actual-units tracking (scan-based, per-segment attribution) is turned off for now - it
+  // couldn't be made reliable for split/moved associates. Everything here runs on UPH × Hours
+  // (this occupant's own avgUPH, or the station's Target UPH with no history yet, times the
+  // `hours` field below) instead - same numbers that already feed the station's Projected total.
   row.innerHTML = `
     <div class="who">${nameHtml}<span class="uph">(${uph.toFixed(1)} UPH)</span></div>
-    <div class="actual-units">Actual: <b>${actualUnits}</b> units</div>
     <div class="controls">
-      <label class="since-label">Since <input class="since" type="time" value="${timestampToTimeInputValue(seg.startTime)}" title="Correct when this segment actually started, if it doesn't match when you updated the board" draggable="false"></label>
       <input class="hrs" type="number" step="0.25" value="${hrs}" title="Hours in function" draggable="false">
       <button class="split" type="button" draggable="false" title="Also assign to a second function at the same time">⑂ Split</button>
       <button class="remove" type="button" draggable="false" title="Return to pool">✕ Remove</button>
@@ -2210,36 +2176,8 @@ function occupantRow(seg, a, uph, hrs, functionKey) {
   // gets read as "start dragging the row" instead of "click the button." Bail out of the drag
   // entirely when it's starting from one of those controls so their click/change still fires.
   row.addEventListener("dragstart", e => {
-    if (e.target.closest(".remove, .hrs, .split, .since")) { e.preventDefault(); return; }
+    if (e.target.closest(".remove, .hrs, .split")) { e.preventDefault(); return; }
     e.dataTransfer.setData("text/plain", JSON.stringify({ aid: seg.associateId, sid: seg.id }));
-  });
-  // Segment startTime is normally stamped at whatever moment someone clicked Split/dragged them
-  // in the app — which can lag well behind when the move actually happened on the floor. This
-  // lets a supervisor correct it after the fact so unit attribution (actualUnitsToday, which
-  // matches each 30-min bucket's midpoint against this exact window) lines up with reality.
-  row.querySelector(".since").addEventListener("change", async e => {
-    const val = e.target.value;
-    if (!val) return;
-    const newStart = timeInputToTimestamp(val);
-    const segRef = db.collection("assignments").doc(currentShiftDate).collection("segments");
-    await segRef.doc(seg.id).update({ startTime: newStart });
-
-    // If this associate has exactly one OTHER segment still open right now, it's almost always
-    // their Split counterpart — the function they were in before this move, still sitting open
-    // because Split doesn't auto-close anything. Offer to close it at this same corrected time,
-    // turning what's been tracked as a simultaneous split into a clean sequential move: once the
-    // two segments no longer overlap, attribution no longer needs to guess/blend between them at
-    // all for this associate going forward.
-    const others = segments.filter(s => s.associateId === seg.associateId && !s.endTime && s.id !== seg.id);
-    if (others.length === 1) {
-      const other = others[0];
-      const otherLabel = FUNCTIONS[other.functionKey] ? FUNCTIONS[other.functionKey].name : other.functionKey;
-      if (confirm(`Also close their ${otherLabel} segment at this same time (${val})? This turns the split into a clean move instead of an ongoing simultaneous split.`)) {
-        const otherStartMs = other.startTime ? (other.startTime.toMillis ? other.startTime.toMillis() : other.startTime) : newStart.toMillis();
-        const hours = Math.max(0, (newStart.toMillis() - otherStartMs) / 3600000);
-        await segRef.doc(other.id).update({ endTime: newStart, hoursInFunction: Math.round(hours * 100) / 100 });
-      }
-    }
   });
   row.querySelector(".hrs").addEventListener("change", e => {
     const newHours = parseFloat(e.target.value) || 0;
@@ -2247,7 +2185,7 @@ function occupantRow(seg, a, uph, hrs, functionKey) {
     segRef.doc(seg.id).update({ hoursInFunction: newHours });
 
     // Auto-balance: if this associate is split into exactly 2 concurrent functions right now,
-    // the other one auto-fills so the two add up to appSettings.productionHoursPerShift — e.g.
+    // the other one auto-fills so the two add up to appSettings.productionHoursPerShift - e.g.
     // 4 hours here sets the other to 5.16 when that total is 9.16. Only kicks in for exactly 2;
     // with 3+ concurrent functions there's no single right way to divide the remainder, so those
     // are left for you to set by hand.
@@ -2277,7 +2215,7 @@ function wireDropZone(el, station) {
     el.classList.remove("dragover");
     const raw = e.dataTransfer.getData("text/plain");
     if (!raw) return;
-    // Payload is JSON {aid, sid} — sid identifies exactly which of an associate's segments is
+    // Payload is JSON {aid, sid} - sid identifies exactly which of an associate's segments is
     // being dragged (relevant once someone can be split across 2+ concurrent segments), or
     // null when dragging straight from the Talent Pool (no segment yet). Falls back to
     // treating the raw string as a bare associateId in case an old cached page sent that.
@@ -2335,7 +2273,7 @@ async function closeSegment(seg) {
    SPLIT: assign someone to a SECOND function at the same time, without
    closing their existing segment(s). Each segment keeps its own hours,
    and each station's occupant count / projected units / UPH stay based
-   only on that station's own segments — nothing shared gets double-
+   only on that station's own segments - nothing shared gets double-
    counted since a split associate is just two independent segment docs.
    ====================================================================== */
 async function splitSegment(associateId, station) {
@@ -2385,7 +2323,7 @@ function openSplitModal(associateId) {
       list.appendChild(label);
     });
   }
-  noteEl.textContent = "Adds a second, concurrent assignment — their current one stays active too. Set each function's hours afterward on its own card.";
+  noteEl.textContent = "Adds a second, concurrent assignment - their current one stays active too. Set each function's hours afterward on its own card.";
   overlay.classList.remove("hidden");
 
   function close() {
@@ -2410,12 +2348,12 @@ function openSplitModal(associateId) {
 
 // One-time cleanup for the duplicate-listener bug: closes every still-active segment for the
 // currently viewed shift date, so anyone stuck "assigned" from a move that silently created
-// several duplicate segment docs gets fully freed back to the pool. Safe to run any time —
+// several duplicate segment docs gets fully freed back to the pool. Safe to run any time -
 // it only touches segments that are already open (no endTime); anything already closed is
 // left alone, and there's nothing to lose since the drag-and-drop board is meant to reflect
 // live real-time placement, not a permanent record.
 document.getElementById("clear-assignments-btn").addEventListener("click", async () => {
-  if (!confirm(`Close every active assignment for ${currentShiftDate}? Everyone will return to the labor pool — you'll need to re-drag them.`)) return;
+  if (!confirm(`Close every active assignment for ${currentShiftDate}? Everyone will return to the labor pool - you'll need to re-drag them.`)) return;
   const openSegs = segments.filter(s => !s.endTime);
   if (!openSegs.length) { alert("Nothing active to reset."); return; }
   const now = firebase.firestore.Timestamp.now();
@@ -2425,7 +2363,7 @@ document.getElementById("clear-assignments-btn").addEventListener("click", async
   await batch.commit();
 });
 
-// Talent Pool search — just re-renders the board from already-loaded local state (no Firestore
+// Talent Pool search - just re-renders the board from already-loaded local state (no Firestore
 // round-trip), so it's cheap to fire on every keystroke.
 document.getElementById("pool-search").addEventListener("input", e => {
   poolSearchTerm = e.target.value;
@@ -2462,8 +2400,8 @@ document.getElementById("seed-btn").addEventListener("click", async () => {
 });
 
 // One-time migration: Pack used to be individual one-person "slot" stations (8 Small Pack,
-// 6 Large Pack, 1 Large Pack Cubbies). Now it's bucket-style like Walkie Pick — one drop zone
-// per size, any number of associates — with Cubbies folded into Large Pack. This replaces the
+// 6 Large Pack, 1 Large Pack Cubbies). Now it's bucket-style like Walkie Pick - one drop zone
+// per size, any number of associates - with Cubbies folded into Large Pack. This replaces the
 // old slot docs with two new bucket docs (ids "SMALL_PACK" / "LARGE_PACK", matching what Seed
 // would create going forward), closes any active segments pointing at the stations being
 // removed (so nobody's left assigned to a station that no longer exists), and preserves the
@@ -2473,7 +2411,7 @@ document.getElementById("migrate-pack-btn").addEventListener("click", async () =
   const smallDocs = stations.filter(st => st.functionKey === "SMALL_PACK" && st.type === "slot");
   const largeDocs = stations.filter(st => (st.functionKey === "LARGE_PACK" || st.functionKey === "LARGE_PACK_CUBBIES") && st.type === "slot");
   if (!smallDocs.length && !largeDocs.length) {
-    alert("Nothing to migrate — no old-style Small/Large Pack slot stations found. If you already ran this, you're done.");
+    alert("Nothing to migrate - no old-style Small/Large Pack slot stations found. If you already ran this, you're done.");
     return;
   }
   if (!confirm(`This will replace ${smallDocs.length} Small Pack + ${largeDocs.length} Large Pack/Cubbies slot stations with 2 bucket stations. Anyone currently assigned to one of them will be returned to the pool. Continue?`)) return;
@@ -2553,7 +2491,7 @@ function renderStationsAdmin() {
 
 /* ======================================================================
    CERTS PICKER MODAL
-   Shared by "Add associate" and each row's Certs button below — opens with
+   Shared by "Add associate" and each row's Certs button below - opens with
    a given set of currently-checked function keys, calls onSave(keys) if
    the user clicks Save, does nothing if they Cancel/click outside.
    ====================================================================== */
@@ -2634,10 +2572,10 @@ document.getElementById("bulk-add-assoc-btn").addEventListener("click", async ()
   const toAdd = [...new Set(ids)].filter(id => !existing.has(id));
   const skipped = ids.length - toAdd.length;
 
-  if (!toAdd.length) { logEl.textContent = `Nothing to add — all ${ids.length} already exist.`; return; }
+  if (!toAdd.length) { logEl.textContent = `Nothing to add - all ${ids.length} already exist.`; return; }
 
   // Known non-person Employee Ids in the transaction export default to "automated" so they
-  // don't show up as draggable cards in the Talent Pool — their scans still count normally.
+  // don't show up as draggable cards in the Talent Pool - their scans still count normally.
   const KNOWN_AUTOMATED_IDS = new Set(["RSItem", "inVia"]);
   const batch = db.batch();
   toAdd.forEach(id => {
@@ -2666,7 +2604,7 @@ function renderAssociatesAdmin() {
         <div class="certs-summary">${certsSummaryText(myRoles)}</div>
       </td>
       <td><input type="checkbox" data-field="active" ${a.active !== false ? "checked" : ""}></td>
-      <td><input type="checkbox" data-field="automated" ${a.automated ? "checked" : ""} title="Not a person — hidden from Talent Pool, units still count"></td>
+      <td><input type="checkbox" data-field="automated" ${a.automated ? "checked" : ""} title="Not a person - hidden from Talent Pool, units still count"></td>
       <td class="row-actions"><button data-action="delete">Delete</button></td>`;
     tr.querySelectorAll("input").forEach(inp => {
       inp.addEventListener("change", () => {
@@ -2763,7 +2701,7 @@ function associateIdByEmployeeIdMap() {
 }
 
 // Sums cleaned (deduped) rows into the same 30-min buckets the Shift Trend chart reads, for
-// just the two Tran Types the chart cares about (315 Pack, 301 Pick) — everything else is
+// just the two Tran Types the chart cares about (315 Pack, 301 Pick) - everything else is
 // already covered by the per-associate uphHistory aggregation and doesn't need a bucket series.
 function buildTrendBuckets(cleaned) {
   const buckets = shiftBucketList();
@@ -2781,7 +2719,7 @@ function buildTrendBuckets(cleaned) {
 }
 
 // Same idea as buildTrendBuckets, but split out per associate too (not just per Tran Type) and
-// covering every Tran Type, not just 315/301 — the Associate UPH Trend tab needs bucketed
+// covering every Tran Type, not just 315/301 - the Associate UPH Trend tab needs bucketed
 // history for whichever function is picked, and any of the 13 can be selected. Rows for an
 // Employee Id with no matching Associates record are skipped here the same way they're skipped
 // (and logged) in aggregateToUPH.
@@ -2825,7 +2763,7 @@ document.getElementById("commit-btn").addEventListener("click", async () => {
   if (!pendingImportRows || !pendingImportRows.length) return;
 
   // Firestore batches cap at 500 writes. uphHistory alone rarely gets close, but adding one
-  // assocTrend doc per associate/function combo can push a big day's total import over that —
+  // assocTrend doc per associate/function combo can push a big day's total import over that -
   // so writes are queued here and flushed in chunks rather than assumed to fit one batch.
   const bucketLabels = shiftBucketList().map(b => b.label);
   const writes = [];
@@ -2861,9 +2799,9 @@ document.getElementById("commit-btn").addEventListener("click", async () => {
     }
   } catch (err) {
     // Without this, a rejected commit (e.g. Firestore rules not yet redeployed for a
-    // collection this import now writes to, like assocTrend) failed completely silently —
+    // collection this import now writes to, like assocTrend) failed completely silently -
     // the "Ready to write..." line just sat there forever with no error and no confirmation.
-    log.textContent += `\nERROR writing to Firestore: ${err.message}\nNothing after this point was written — if this mentions "permission" or "insufficient permissions", the firestore.rules file hasn't been redeployed in the Firebase console yet (Firestore → Rules tab → paste firestore.rules → Publish).`;
+    log.textContent += `\nERROR writing to Firestore: ${err.message}\nNothing after this point was written - if this mentions "permission" or "insufficient permissions", the firestore.rules file hasn't been redeployed in the Firebase console yet (Firestore → Rules tab → paste firestore.rules → Publish).`;
     return;
   }
   log.textContent += `\nWrote ${pendingImportRows.length} record(s) to uphHistory, ${Object.keys(pendingTrendBuckets || {}).length} Shift Trend bucket set(s), and ${Object.keys(pendingAssocTrendBuckets || {}).length} Associate UPH Trend bucket set(s).`;
@@ -2885,7 +2823,7 @@ document.getElementById("clear-shiftdate-btn").addEventListener("click", async (
     db.collection("assocTrend").where("shiftDate", "==", shiftDate).get()
   ]);
   if (uphSnap.empty && trendSnap.empty && assocTrendSnap.empty) { log.textContent = `No records found for ${shiftDate}.`; return; }
-  // Firestore batches cap at 500 writes — a busy day's per-associate deletes can exceed that, so
+  // Firestore batches cap at 500 writes - a busy day's per-associate deletes can exceed that, so
   // chunk into multiple batches instead of assuming everything fits in one (uphHistory + Shift
   // Trend alone have never come close, but Associate UPH Trend can with enough associates/functions).
   const allDocs = [...uphSnap.docs, ...trendSnap.docs, ...assocTrendSnap.docs];
@@ -2903,7 +2841,7 @@ function parseTransactionFile(file) {
     reader.onload = e => {
       try {
         // raw: true (not false) so date cells come through as real JS Date objects instead of
-        // formatted strings — with raw: false, "Date Time" cells were being stringified and then
+        // formatted strings - with raw: false, "Date Time" cells were being stringified and then
         // re-parsed with new Date(string) in cleanRows, which is a second source of the same
         // timezone/date-boundary trouble that todayShiftDateStr had. cleanQty() below already
         // handles numeric Tran Qty values whether they arrive as numbers or strings, so this is
@@ -2953,10 +2891,10 @@ function cleanRows(raw, log) {
     const rawDt = isRealDateCell ? o["Date Time"] : new Date(o["Date Time"]);
     if (isNaN(rawDt)) { droppedBadDate++; return null; }
     // SheetJS (cellDates: true) builds Date objects from Excel serial dates using UTC-based
-    // fields — i.e. the wall-clock time Excel shows lives in the UTC getters, not the local
-    // ones — so for THAT case we reconstruct a genuine local Date from those UTC fields.
+    // fields - i.e. the wall-clock time Excel shows lives in the UTC getters, not the local
+    // ones - so for THAT case we reconstruct a genuine local Date from those UTC fields.
     // BUT: some rows in this export come through with "Date Time" as plain text (not a real
-    // Excel date cell), which falls back to `new Date(string)` — and that constructor already
+    // Excel date cell), which falls back to `new Date(string)` - and that constructor already
     // parses the string using LOCAL wall-clock semantics, correctly. Applying the UTC-field
     // reconstruction to THAT kind of Date double-shifts it by the local UTC offset (7 hours in
     // September for Las Vegas), which is what was silently pushing a real 8 PM scan into a
@@ -3013,7 +2951,7 @@ function cleanRows(raw, log) {
     log.textContent += `  ${id}: ${windowedPackByEmp[id]} units\n`;
   });
 
-  // Step 4: dedupe on {Tran Type, Employee Id, Date Time, Item Number, Tran Qty} — matches the
+  // Step 4: dedupe on {Tran Type, Employee Id, Date Time, Item Number, Tran Qty} - matches the
   // workbook's Table.Distinct key exactly. Item Number matters: two different items scanned by
   // the same associate at the same second for the same qty are legitimately separate rows, and
   // leaving Item Number out of the key was collapsing them into one (undercounting units).
@@ -3055,7 +2993,7 @@ function aggregateToUPH(rows, log) {
     }
     const minMs = Math.min(...g.times), maxMs = Math.max(...g.times);
     const minutes = (maxMs - minMs) / 60000;
-    // Units are real regardless of spread — only the derived UPH rate is unreliable on a short
+    // Units are real regardless of spread - only the derived UPH rate is unreliable on a short
     // spread, so we still keep the units (and count them toward daily totals) but mark the rate
     // unreliable so it's excluded from average-UPH calculations.
     const reliable = minutes >= 10;
@@ -3075,7 +3013,7 @@ function aggregateToUPH(rows, log) {
       log.textContent += `  ${key}: ${skippedUnitsByDateType[key]} units\n`;
     });
   }
-  if (skippedShort) log.textContent += `${skippedShort} record(s) had under 10 minutes of scan spread — units are still counted, but their UPH rate is excluded from averaging as unreliable.\n`;
+  if (skippedShort) log.textContent += `${skippedShort} record(s) had under 10 minutes of scan spread - units are still counted, but their UPH rate is excluded from averaging as unreliable.\n`;
 
   // Per shiftDate / Tran Type breakdown, so you can match this against a specific number from
   // your Shift Cost Sheet (e.g. "Packs (315) units packed" for one date).
@@ -3090,7 +3028,7 @@ function aggregateToUPH(rows, log) {
   });
 
   // Per-Employee-Id breakdown for Pack (315) specifically, EVERY Employee Id seen in the cleaned
-  // data (whether matched to an Associates record or not) — use this to diff directly against a
+  // data (whether matched to an Associates record or not) - use this to diff directly against a
   // known-correct per-person list (e.g. from the Shift Cost Sheet) and see exactly which Ids are
   // over/under/missing, instead of only a lump total.
   log.textContent += `\nPack (315) units by Employee Id, every date in this import (for reconciling against a known-correct list):\n`;
