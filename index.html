@@ -172,6 +172,7 @@
   .assoc-card .meta{color:var(--muted);font-size:11px;margin-top:1px;display:flex;gap:6px;}
   .role-tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px;}
   .role-tag{font-size:10px;background:#eef1f6;color:var(--muted);border-radius:8px;padding:1px 6px;}
+  .ojt-tag{font-size:9px;font-weight:700;background:#fff3d6;color:#8a5a00;border:1px solid #f2c66d;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle;white-space:nowrap;}
   .trend-up{color:var(--ok);} .trend-down{color:var(--bad);} .trend-flat{color:var(--muted);}
   #pool-list.dragover, .station-slot.dragover, .station-bucket .bucket-drop.dragover{outline:2px dashed var(--accent);outline-offset:2px;}
 
@@ -563,7 +564,7 @@
         <button class="btn secondary" id="bulk-add-assoc-btn">Bulk add</button>
         <div id="bulk-assoc-log" class="note hidden"></div>
         <table class="admin-table" id="assoc-table">
-          <thead><tr><th>Employee Id</th><th>Name</th><th>Associate Id</th><th>Certs</th><th>Active</th><th>Automated</th><th></th></tr></thead>
+          <thead><tr><th>Employee Id</th><th>Name</th><th>Associate Id</th><th>Certs</th><th>OJT</th><th>Active</th><th>Automated</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -657,6 +658,28 @@
     <div class="modal-actions">
       <button class="btn secondary" id="certs-cancel-btn">Cancel</button>
       <button class="btn" id="certs-save-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- OJT ramp picker modal: each row's OJT button in the Associates admin table opens this to set
+     which training week an associate is in. Only one week is ever checked at a time (checking one
+     unchecks the others) - it scales that associate's EXPECTED UPH on station/hero cards down to
+     the matching percentage, since a trainee's real UPH shouldn't be judged against full rate.
+     See openOjtModal() in the script. -->
+<div class="modal-overlay hidden" id="ojt-modal">
+  <div class="modal-box">
+    <h3>OJT Rates</h3>
+    <div class="note">Check the associate's current training week to scale their expected UPH. Uncheck all once they're at full rate.</div>
+    <div class="certs-list" id="ojt-list">
+      <label><input type="checkbox" data-week="1"> Week 1 - 20% of rate</label>
+      <label><input type="checkbox" data-week="2"> Week 2 - 50% of rate</label>
+      <label><input type="checkbox" data-week="3"> Week 3 - 75% of rate</label>
+      <label><input type="checkbox" data-week="4"> Week 4 - 100% of rate</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="ojt-cancel-btn">Cancel</button>
+      <button class="btn" id="ojt-save-btn">Save</button>
     </div>
   </div>
 </div>
@@ -1030,6 +1053,29 @@ function avgUPH(associateId, functionKey) {
   return sum / hist.length;
 }
 
+// On-the-Job Training ramp: a trainee isn't expected to hit full rate right away, so instead of
+// tracking their actual scanned units (which are legitimately low), we scale their EXPECTED UPH
+// by a week-by-week percentage set on the associate record (ojtWeek: 1-4, or 0/unset = full
+// rate/not in training). This only affects projections (station cards, hero pivot) - it never
+// touches avgUPH's own historical calc, so once training ends their real average takes over.
+const OJT_RATES = { 1: 0.20, 2: 0.50, 3: 0.75, 4: 1.00 };
+const OJT_LABELS = { 1: "Week 1", 2: "Week 2", 3: "Week 3", 4: "Week 4" };
+function ojtMultiplier(a) {
+  if (!a || !a.ojtWeek || !OJT_RATES[a.ojtWeek]) return 1;
+  return OJT_RATES[a.ojtWeek];
+}
+function ojtSummary(a) {
+  if (!a || !a.ojtWeek || !OJT_RATES[a.ojtWeek]) return "Not in training";
+  return `${OJT_LABELS[a.ojtWeek]} (${Math.round(OJT_RATES[a.ojtWeek] * 100)}% of rate)`;
+}
+// Expected UPH for projections: an associate's own avgUPH (or the station's set/target UPH if
+// they have no history yet), scaled down by their OJT ramp percentage if they're in training.
+function effectiveUPH(a, functionKey, fallbackUPH) {
+  const perf = a ? avgUPH(a.id, functionKey) : null;
+  const base = perf != null ? perf : fallbackUPH;
+  return base * ojtMultiplier(a);
+}
+
 // Actual units this associate has posted TODAY for THIS function specifically (not an average,
 // not projected - the real running count from the day's import), for the occupant card's
 // "Actual" line and the station card's Actual total.
@@ -1283,8 +1329,7 @@ function renderBoard() {
         } else {
           const seg = occupants[0];
           const a = associates.find(x => x.id === seg.associateId);
-          const perf = a ? avgUPH(a.id, st.functionKey) : null;
-          const uph = perf != null ? perf : st.setUPH;
+          const uph = effectiveUPH(a, st.functionKey, st.setUPH);
           const hrs = seg.hoursInFunction != null ? seg.hoursInFunction : (goal ? goal.plannedHours : 8);
           projectedUnits = uph * hrs;
           dropZone.appendChild(occupantRow(seg, a, uph, hrs, st.functionKey));
@@ -1299,7 +1344,8 @@ function renderBoard() {
         // since listeners never serialize into HTML - which is exactly why Remove silently
         // stopped working: the button still LOOKED right, it just had zero listeners left.
         if (occupants.length) {
-          const uphNow = occupants[0] ? (associates.find(x=>x.id===occupants[0].associateId) ? (avgUPH(occupants[0].associateId, st.functionKey) ?? st.setUPH) : st.setUPH) : st.setUPH;
+          const uphNowAssoc = associates.find(x => x.id === occupants[0].associateId);
+          const uphNow = effectiveUPH(uphNowAssoc, st.functionKey, st.setUPH);
           const projLine = document.createElement("div");
           projLine.className = "proj-line";
           projLine.textContent = `Projected total: ${Math.round(projectedUnits)} units (${uphNow.toFixed(1)} UPH avg)`;
@@ -1318,8 +1364,7 @@ function renderBoard() {
         }
         occupants.forEach(seg => {
           const a = associates.find(x => x.id === seg.associateId);
-          const perf = a ? avgUPH(a.id, st.functionKey) : null;
-          const uph = perf != null ? perf : st.setUPH;
+          const uph = effectiveUPH(a, st.functionKey, st.setUPH);
           const hrs = seg.hoursInFunction != null ? seg.hoursInFunction : (goal ? goal.plannedHours : 8);
           projectedUnits += uph * hrs;
           dropZone.appendChild(occupantRow(seg, a, uph, hrs, st.functionKey));
@@ -1355,8 +1400,7 @@ function renderBoard() {
         packHeadcount += occupants.length;
         packUphSum += occupants.reduce((s, o) => {
           const a = associates.find(x => x.id === o.associateId);
-          const perf = a ? avgUPH(a.id, st.functionKey) : null;
-          return s + (perf != null ? perf : st.setUPH);
+          return s + effectiveUPH(a, st.functionKey, st.setUPH);
         }, 0);
       }
 
@@ -1366,8 +1410,7 @@ function renderBoard() {
         const actualTotal = occupants.reduce((s, o) => s + actualUnitsToday(o.associateId, st.functionKey), 0);
         const uphSum = occupants.reduce((s, o) => {
           const a = associates.find(x => x.id === o.associateId);
-          const perf = a ? avgUPH(a.id, st.functionKey) : null;
-          return s + (perf != null ? perf : st.setUPH);
+          return s + effectiveUPH(a, st.functionKey, st.setUPH);
         }, 0);
         const key = st.functionKey;
         if (!pivotByFn[key]) {
@@ -2147,7 +2190,8 @@ function associateCard(a, currentFunctionKey) {
   const tags = myRoles.length > 1
     ? `<div class="role-tags">${myRoles.map(r => `<span class="role-tag">${FUNCTIONS[r] ? FUNCTIONS[r].name : r}</span>`).join("")}</div>`
     : "";
-  el.innerHTML = `${avatarHTML(a, displayFn)}<div style="min-width:0"><div class="name">${a.name || a.employeeId}</div><div class="meta">${metaBits.join(" ")}</div>${tags}</div>`;
+  const ojtBadge = (a.ojtWeek && OJT_RATES[a.ojtWeek]) ? `<span class="ojt-tag">OJT ${OJT_LABELS[a.ojtWeek]}</span>` : "";
+  el.innerHTML = `${avatarHTML(a, displayFn)}<div style="min-width:0"><div class="name">${a.name || a.employeeId}${ojtBadge}</div><div class="meta">${metaBits.join(" ")}</div>${tags}</div>`;
   el.addEventListener("dragstart", e => {
     e.dataTransfer.setData("text/plain", JSON.stringify({ aid: a.id, sid: null }));
   });
@@ -2160,12 +2204,14 @@ function occupantRow(seg, a, uph, hrs, functionKey) {
   row.draggable = true;
   row.dataset.associateId = seg.associateId;
   const nameHtml = a ? `${avatarHTML(a, functionKey)}<span class="name">${a.name || a.employeeId}</span>` : `<span class="name">(unknown)</span>`;
+  const ojtBadge = (a && a.ojtWeek && OJT_RATES[a.ojtWeek]) ? `<span class="ojt-tag" title="Expected UPH scaled to ${Math.round(OJT_RATES[a.ojtWeek] * 100)}% of rate">OJT ${OJT_LABELS[a.ojtWeek]}</span>` : "";
   // Actual-units tracking (scan-based, per-segment attribution) is turned off for now - it
   // couldn't be made reliable for split/moved associates. Everything here runs on UPH × Hours
   // (this occupant's own avgUPH, or the station's Target UPH with no history yet, times the
-  // `hours` field below) instead - same numbers that already feed the station's Projected total.
+  // `hours` field below, and scaled down further by the OJT ramp % if they're in training)
+  // instead - same numbers that already feed the station's Projected total.
   row.innerHTML = `
-    <div class="who">${nameHtml}<span class="uph">(${uph.toFixed(1)} UPH)</span></div>
+    <div class="who">${nameHtml}<span class="uph">(${uph.toFixed(1)} UPH)</span>${ojtBadge}</div>
     <div class="controls">
       <input class="hrs" type="number" step="0.25" value="${hrs}" title="Hours in function" draggable="false">
       <button class="split" type="button" draggable="false" title="Also assign to a second function at the same time">⑂ Split</button>
@@ -2534,6 +2580,45 @@ function openCertsModal(selectedKeys, onSave) {
   overlay.addEventListener("click", onOverlayClick);
 }
 
+// OJT ramp picker: exactly one week (or none) can be checked at a time - checking one unchecks
+// the rest, since an associate is only ever in one training week. Unchecking all and saving
+// clears ojtWeek back to 0 (full rate / not in training).
+function openOjtModal(currentWeek, onSave) {
+  const overlay = document.getElementById("ojt-modal");
+  const list = document.getElementById("ojt-list");
+  const boxes = [...list.querySelectorAll("input[type=checkbox]")];
+  boxes.forEach(cb => {
+    cb.checked = Number(cb.dataset.week) === Number(currentWeek);
+  });
+  overlay.classList.remove("hidden");
+
+  const saveBtn = document.getElementById("ojt-save-btn");
+  const cancelBtn = document.getElementById("ojt-cancel-btn");
+  function onBoxChange(e) {
+    if (e.target.checked) {
+      boxes.forEach(cb => { if (cb !== e.target) cb.checked = false; });
+    }
+  }
+  function close() {
+    overlay.classList.add("hidden");
+    saveBtn.removeEventListener("click", onSaveClick);
+    cancelBtn.removeEventListener("click", close);
+    overlay.removeEventListener("click", onOverlayClick);
+    boxes.forEach(cb => cb.removeEventListener("change", onBoxChange));
+  }
+  function onSaveClick() {
+    const checked = boxes.find(cb => cb.checked);
+    const week = checked ? Number(checked.dataset.week) : 0;
+    close();
+    onSave(week);
+  }
+  function onOverlayClick(e) { if (e.target === overlay) close(); }
+  boxes.forEach(cb => cb.addEventListener("change", onBoxChange));
+  saveBtn.addEventListener("click", onSaveClick);
+  cancelBtn.addEventListener("click", close);
+  overlay.addEventListener("click", onOverlayClick);
+}
+
 /* ======================================================================
    ADMIN: ASSOCIATES
    ====================================================================== */
@@ -2603,6 +2688,10 @@ function renderAssociatesAdmin() {
         <button type="button" class="certs-btn" data-action="certs">Certs</button>
         <div class="certs-summary">${certsSummaryText(myRoles)}</div>
       </td>
+      <td>
+        <button type="button" class="certs-btn" data-action="ojt">OJT</button>
+        <div class="certs-summary">${ojtSummary(a)}</div>
+      </td>
       <td><input type="checkbox" data-field="active" ${a.active !== false ? "checked" : ""}></td>
       <td><input type="checkbox" data-field="automated" ${a.automated ? "checked" : ""} title="Not a person - hidden from Talent Pool, units still count"></td>
       <td class="row-actions"><button data-action="delete">Delete</button></td>`;
@@ -2616,6 +2705,11 @@ function renderAssociatesAdmin() {
     tr.querySelector('[data-action="certs"]').addEventListener("click", () => {
       openCertsModal(rolesFor(a), keys => {
         db.collection("associates").doc(a.id).update({ trainedRoles: keys });
+      });
+    });
+    tr.querySelector('[data-action="ojt"]').addEventListener("click", () => {
+      openOjtModal(a.ojtWeek || 0, week => {
+        db.collection("associates").doc(a.id).update({ ojtWeek: week });
       });
     });
     tr.querySelector('[data-action="delete"]').addEventListener("click", () => {
