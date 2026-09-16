@@ -2051,8 +2051,10 @@ function renderAssocTrendChart() {
 
   const fn = FUNCTIONS[functionKey];
   const station = stations.find(st => st.functionKey === functionKey);
-  const targetUph = (station && station.setUPH) || fn.defaultUPH;
-  document.getElementById("assoc-trend-target-uph").textContent = targetUph;
+  const associate = associates.find(a => a.id === associateId);
+  const baseTargetUph = (station && station.setUPH) || fn.defaultUPH;
+  const targetUph = baseTargetUph * ojtMultiplier(associate);
+  document.getElementById("assoc-trend-target-uph").textContent = targetUph.toFixed(1) + (ojtMultiplier(associate) < 1 ? ` (OJT ${OJT_LABELS[associate.ojtWeek]})` : "");
 
   const buckets = shiftBucketList();
   const bucketUnits = buckets.map(() => 0);
@@ -2121,7 +2123,6 @@ function renderAssocTrendChart() {
   renderAssocTrendHourlyTable(buckets, bucketUnits, soFarIdx);
 
   const labels = buckets.map(b => b.label);
-  const associate = associates.find(a => a.id === associateId);
   const datasets = [
     { label: `${associate ? associate.name : "Associate"} Actual Cumulative`, data: actualCum, borderColor: "#2f6fed", backgroundColor: "transparent", tension: 0.15, pointRadius: 2 },
     { label: "Ideal Target Cumulative", data: idealCum, borderColor: "#9aa4b2", borderDash: [6, 4], backgroundColor: "transparent", tension: 0, pointRadius: 0 }
