@@ -630,6 +630,8 @@ let currentShiftDate = todayShiftDateStr();
 let unsubSegments = null;
 let unsubTrend = null;
 let shiftTrendDocs = {}; // tranType ("315"/"301") -> {buckets: [{label, units}]}
+let unsubAssocTrendToday = null;
+let assocTrendDocsToday = {}; // `${associateId}_${tranType}` -> {buckets: [{label, units}]}, every associate/Tran Type for currentShiftDate
 let selectedTrendTran = "315";
 let trendChartInstance = null;
 let unsubAssocTrend = null;
@@ -851,6 +853,20 @@ function watchShift(shiftDate) {
     snap.docs.forEach(d => { shiftTrendDocs[d.data().tranType] = d.data(); });
     renderTrendChart();
   });
+  // Every associate's per-Tran-Type bucket data for today, in one query — this is what lets the
+  // Board attribute a shared-Tran-Type function's occupant/station "Actual" figures to the
+  // right function (see actualUnitsToday()) instead of showing that associate's whole-day Tran
+  // Type total on every function card that shares it (e.g. Small Pack AND Large Pack, both 315).
+  if (unsubAssocTrendToday) unsubAssocTrendToday();
+  assocTrendDocsToday = {};
+  unsubAssocTrendToday = db.collection("assocTrend").where("shiftDate", "==", shiftDate).onSnapshot(snap => {
+    assocTrendDocsToday = {};
+    snap.docs.forEach(d => {
+      const data = d.data();
+      assocTrendDocsToday[`${data.associateId}_${data.tranType}`] = data;
+    });
+    renderBoard();
+  });
   watchAssocTrend();
 }
 
@@ -877,17 +893,49 @@ function avgUPH(associateId, functionKey) {
   return sum / hist.length;
 }
 
-// Actual units this associate has posted TODAY for this function's Tran Type (not an average,
+// Actual units this associate has posted TODAY for THIS function specifically (not an average,
 // not projected — the real running count from the day's import), for the occupant card's
-// "Actual" line and the station card's Actual total. Same Tran Type caveat as everywhere else:
-// a function that shares its Tran Type with others (e.g. OP/MOD/Walkie/WOS Pick all on 301)
-// can't be told apart from scan data alone, so this is that associate's combined units across
-// all functions sharing the Tran Type, not strictly "just this one."
+// "Actual" line and the station card's Actual total.
+//
+// Scan data only tells us the Tran Type, not which of possibly several functions sharing that
+// Tran Type it happened at (Small/Large/WOS Pack all post as 315; OP/MOD/Walkie/WOS Pick all
+// post as 301) — so a flat "today's total for this Tran Type" would show the SAME number on
+// every one of those function cards regardless of which one the associate is actually sitting
+// at right now, and would keep showing their old function's units even after they're moved
+// (this is exactly the bug Hector found: Talen Neel's units followed him from Large Pack to
+// Small Pack instead of staying with Large Pack). To fix that, this attributes each 30-minute
+// bucket of that Tran Type's activity (from assocTrendDocsToday, written per associate at
+// import time) to whichever function his SEGMENT history says he was assigned to at that
+// half-hour, using each segment's real startTime/endTime, and only counts buckets whose
+// segment matches the function being asked about. Accuracy depends on assignments having been
+// moved in the app at roughly the times they actually happened — a bucket with no segment
+// covering its midpoint (e.g. still in the Talent Pool then) doesn't get attributed to anyone,
+// rather than guessed at.
 function actualUnitsToday(associateId, functionKey) {
   const fn = FUNCTIONS[functionKey];
   if (!fn) return 0;
-  const rec = uphHistory.find(h => h.associateId === associateId && h.tranType === fn.tranType && h.shiftDate === currentShiftDate);
-  return rec ? (rec.units || 0) : 0;
+  const doc = assocTrendDocsToday[`${associateId}_${fn.tranType}`];
+  if (!doc || !Array.isArray(doc.buckets) || !doc.buckets.length) return 0;
+
+  const shiftStart = new Date(currentShiftDate + "T00:00:00");
+  shiftStart.setHours(Math.floor(appSettings.shiftStartHour), (appSettings.shiftStartHour % 1) * 60, 0, 0);
+  const shiftStartMs = shiftStart.getTime();
+  const nowMs = Date.now();
+  const mySegments = segments.filter(s => s.associateId === associateId && s.startTime);
+
+  let total = 0;
+  doc.buckets.forEach((b, i) => {
+    const units = b.units || 0;
+    if (!units) return;
+    const midMs = shiftStartMs + (i + 0.5) * 30 * 60000;
+    const seg = mySegments.find(s => {
+      const startMs = s.startTime.toMillis ? s.startTime.toMillis() : s.startTime;
+      const endMs = s.endTime ? (s.endTime.toMillis ? s.endTime.toMillis() : s.endTime) : nowMs;
+      return midMs >= startMs && midMs < endMs;
+    });
+    if (seg && seg.functionKey === functionKey) total += units;
+  });
+  return Math.round(total);
 }
 
 function trendFor(associateId, functionKey) {
