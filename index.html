@@ -1062,6 +1062,22 @@ function actualUnitsToday(associateId, functionKey) {
   const nowMs = Date.now();
   const mySegments = segments.filter(s => s.associateId === associateId && s.startTime);
 
+  // Fallback for a bucket that no segment covers at all — most often because the associate was
+  // already physically working before a supervisor got around to dragging their card onto the
+  // board in the app, so their segment's startTime is later than when the scans actually
+  // happened. Those units are still rightfully theirs; the only reason to withhold them is
+  // genuine ambiguity about WHICH function they belong to. If every segment this associate has
+  // had today under this Tran Type points at the same single function, there's no ambiguity —
+  // attribute uncovered buckets to it. If they touched more than one such function today (a real
+  // move, not just a late app assignment), leave uncovered buckets unattributed as before, same
+  // as the shared-Tran-Type-across-different-associates limitation noted elsewhere in this file.
+  const candidateFnKeys = new Set(
+    mySegments
+      .filter(s => FUNCTIONS[s.functionKey] && FUNCTIONS[s.functionKey].tranType === fn.tranType)
+      .map(s => s.functionKey)
+  );
+  const soleCandidateFn = candidateFnKeys.size === 1 ? [...candidateFnKeys][0] : null;
+
   let total = 0;
   doc.buckets.forEach((b, i) => {
     const units = b.units || 0;
@@ -1083,7 +1099,10 @@ function actualUnitsToday(associateId, functionKey) {
       const endMs = s.endTime ? (s.endTime.toMillis ? s.endTime.toMillis() : s.endTime) : nowMs;
       return midMs >= startMs && midMs < endMs;
     });
-    if (!matchingSegs.length) return;
+    if (!matchingSegs.length) {
+      if (soleCandidateFn && soleCandidateFn === functionKey) total += units;
+      return;
+    }
     const weightOf = s => (s.hoursInFunction != null && s.hoursInFunction > 0) ? s.hoursInFunction : 1;
     const totalWeight = matchingSegs.reduce((s, seg) => s + weightOf(seg), 0);
     const myWeight = matchingSegs.filter(s => s.functionKey === functionKey).reduce((s, seg) => s + weightOf(seg), 0);
