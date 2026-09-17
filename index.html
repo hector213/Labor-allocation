@@ -88,6 +88,9 @@
   .pivot-card-sub{font-size:.7rem;color:var(--hero-muted);margin-top:4px;}
   .pivot-card-value.green{color:#4ade80;} .pivot-card-value.red{color:#fca5a5;}
   .pivot-card-value.yellow{color:#facc15;} .pivot-card-value.white{color:#fff;} .pivot-card-value.accent{color:var(--accent,#f5a623);}
+  .pivot-card-value-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+  .pivot-card-value-row .pivot-card-value:last-child{color:var(--hero-muted);}
+  .pivot-card-goal-label{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);}
 
   #pivot-analysis{width:100%;background:#16213f;border:1px solid #2d4a7a;border-radius:10px;padding:14px 18px;}
   .pivot-analysis-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:10px;}
@@ -96,6 +99,7 @@
   .pivot-item-value{font-size:1.2rem;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px;}
   .pivot-item-value.green{color:#4ade80;} .pivot-item-value.red{color:#fca5a5;}
   .pivot-item-value.white{color:#fff;} .pivot-item-value.accent{color:var(--accent,#f5a623);}
+  .pivot-item-value.yellow{color:#fde68a;}
   .pivot-rec{margin-top:12px;padding:9px 14px;border-radius:8px;font-size:.85rem;font-weight:600;line-height:1.4;}
   .pivot-rec.ok{background:#14532d;color:#86efac;}
   .pivot-rec.warn{background:#78350f;color:#fde68a;}
@@ -337,8 +341,11 @@
         <div id="pivot-projection-grid">
           <div class="pivot-card">
             <div class="pivot-card-label">Projected (Live Pace)</div>
-            <div class="pivot-card-value white" id="pv-projected">&mdash;</div>
-            <div class="pivot-card-sub" id="pv-projected-sub">Goal: &mdash;</div>
+            <div class="pivot-card-value-row">
+              <span class="pivot-card-value white" id="pv-projected">&mdash;</span>
+              <span class="pivot-card-goal-label">Goal</span>
+              <span class="pivot-card-value white" id="pv-projected-sub">&mdash;</span>
+            </div>
           </div>
           <div class="pivot-card">
             <div class="pivot-card-label">Projected (Assigned UPH)</div>
@@ -1535,7 +1542,7 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
   } else {
     projEl.textContent = "-"; projEl.className = "pivot-card-value white";
   }
-  document.getElementById("pv-projected-sub").textContent = `Goal: ${totalGoal ? Math.round(totalGoal).toLocaleString() : "-"}`;
+  document.getElementById("pv-projected-sub").textContent = totalGoal ? Math.round(totalGoal).toLocaleString() : "-";
 
   // Projected (Assigned UPH): sum of each currently-assigned Pack associate's OWN avgUPH ×
   // hoursInFunction - the same per-occupant math the station cards' "Projected total" already
@@ -1559,9 +1566,17 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
   document.getElementById("pv-prodleft-sub").textContent = `of ${Math.round(nominalProdMin)} total`;
 
   // ---- Labor Pivot Analysis box ----
+  // Only start recommending a headcount pivot once we're at least this far behind ideal - being
+  // a little short of pace is normal noise, not a reason to pull someone off another function.
+  // Below the threshold, extraPeople is still calculated (it already factors in how much
+  // production time is left via rateNeeded/prodHoursLeft - less time left means a higher rate
+  // is needed to recover, which naturally recommends more people), it's just not surfaced as a
+  // recommendation until the gap actually crosses -150.
+  const PIVOT_VARIANCE_THRESHOLD = -150;
   const remainingUnits = Math.max(0, totalGoal - actual);
   const rateNeeded = prodHoursLeft > 0 ? remainingUnits / prodHoursLeft : 0;
   const extraPeople = avgPersonUph > 0 && prodHoursLeft > 0 ? Math.ceil((rateNeeded - liveUph) / avgPersonUph) : 0;
+  const pivotWarranted = variance <= PIVOT_VARIANCE_THRESHOLD;
 
   const gapEl = document.getElementById("pv-gap");
   const peopleEl = document.getElementById("pv-people");
@@ -1613,10 +1628,16 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
     recEl.className = "pivot-rec nodata";
     recEl.textContent = "Waiting on import data / assigned associates to calculate a labor recommendation.";
     if (periodLabel === "Production") { banner.className = "no-shift"; banner.textContent = "AWAITING DATA"; }
-  } else if (extraPeople <= 0) {
-    peopleEl.textContent = "On pace"; peopleEl.className = "pivot-item-value green";
-    recEl.className = "pivot-rec ok";
-    recEl.textContent = `Current Pack headcount (${headcount}) is sufficient. Needed rate: ${Math.round(rateNeeded)} UPH - current: ${liveUph.toFixed(1)} UPH.`;
+  } else if (extraPeople <= 0 || !pivotWarranted) {
+    if (variance < 0) {
+      peopleEl.textContent = "Within tolerance"; peopleEl.className = "pivot-item-value yellow";
+      recEl.className = "pivot-rec ok";
+      recEl.textContent = `Behind ideal by ${Math.abs(Math.round(variance)).toLocaleString()} units, within the ${Math.abs(PIVOT_VARIANCE_THRESHOLD)}-unit tolerance - no pivot recommended yet. Needed rate: ${Math.round(rateNeeded)} UPH - current: ${liveUph.toFixed(1)} UPH.`;
+    } else {
+      peopleEl.textContent = "On pace"; peopleEl.className = "pivot-item-value green";
+      recEl.className = "pivot-rec ok";
+      recEl.textContent = `Current Pack headcount (${headcount}) is sufficient. Needed rate: ${Math.round(rateNeeded)} UPH - current: ${liveUph.toFixed(1)} UPH.`;
+    }
     if (periodLabel === "Production" || periodLabel === "Extra") {
       const v = variance;
       if (v >= 10) { banner.className = "ahead"; banner.textContent = `ON PACE | AHEAD BY ${Math.round(v).toLocaleString()} UNITS`; }
