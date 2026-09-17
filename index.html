@@ -88,9 +88,6 @@
   .pivot-card-sub{font-size:.7rem;color:var(--hero-muted);margin-top:4px;}
   .pivot-card-value.green{color:#4ade80;} .pivot-card-value.red{color:#fca5a5;}
   .pivot-card-value.yellow{color:#facc15;} .pivot-card-value.white{color:#fff;} .pivot-card-value.accent{color:var(--accent,#f5a623);}
-  .pivot-card-value-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
-  .pivot-card-value-row .pivot-card-value:last-child{color:var(--hero-muted);}
-  .pivot-card-goal-label{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);}
 
   #pivot-analysis{width:100%;background:#16213f;border:1px solid #2d4a7a;border-radius:10px;padding:14px 18px;}
   .pivot-analysis-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:10px;}
@@ -366,11 +363,13 @@
         <div id="pivot-projection-grid">
           <div class="pivot-card">
             <div class="pivot-card-label">Projected (Live Pace)</div>
-            <div class="pivot-card-value-row">
-              <span class="pivot-card-value white" id="pv-projected">&mdash;</span>
-              <span class="pivot-card-goal-label">Goal</span>
-              <span class="pivot-card-value white" id="pv-projected-sub">&mdash;</span>
-            </div>
+            <div class="pivot-card-value white" id="pv-projected">&mdash;</div>
+            <div class="pivot-card-sub">At current live pace</div>
+          </div>
+          <div class="pivot-card">
+            <div class="pivot-card-label">Goal</div>
+            <div class="pivot-card-value white" id="pv-goal">&mdash;</div>
+            <div class="pivot-card-sub">Combined Pack target</div>
           </div>
           <div class="pivot-card">
             <div class="pivot-card-label">Projected (Assigned UPH)</div>
@@ -1600,7 +1599,7 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
   } else {
     projEl.textContent = "-"; projEl.className = "pivot-card-value white";
   }
-  document.getElementById("pv-projected-sub").textContent = totalGoal ? Math.round(totalGoal).toLocaleString() : "-";
+  document.getElementById("pv-goal").textContent = totalGoal ? Math.round(totalGoal).toLocaleString() : "-";
 
   // Projected (Assigned UPH): sum of each currently-assigned Pack associate's OWN avgUPH ×
   // hoursInFunction - the same per-occupant math the station cards' "Projected total" already
