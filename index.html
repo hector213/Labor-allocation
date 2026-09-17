@@ -92,6 +92,11 @@
   .pivot-card-split-col{flex:1;min-width:0;}
   .pivot-card{background:#173257;border:1px solid #2f5590;border-radius:10px;padding:8px 10px;}
   .pivot-card-label{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:3px;}
+  /* Pack/Pick tags on every pivot card label, so which pills belong to which function is obvious
+     at a glance instead of relying on remembering which section you're looking at. */
+  .pivot-tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:.62rem;font-weight:800;letter-spacing:.03em;margin-right:6px;vertical-align:middle;}
+  .pivot-tag.pack{background:rgba(255,122,28,.2);color:#ffb37a;}
+  .pivot-tag.pick{background:rgba(56,189,248,.2);color:#7dd3fc;}
   .pivot-card-value{font-size:1.7rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
   .pivot-card-sub{font-size:.7rem;color:var(--hero-muted);margin-top:2px;}
   .pivot-card-value.green{color:#4ade80;} .pivot-card-value.red{color:#fca5a5;}
@@ -344,27 +349,27 @@
         <div class="pivot-section-title">Live - From Last Import</div>
         <div id="pivot-card-grid">
           <div class="pivot-card">
-            <div class="pivot-card-label">Actual (Pack-out so far)</div>
+            <div class="pivot-card-label"><span class="pivot-tag pack">Pack</span>Actual (out so far)</div>
             <div class="pivot-card-value white" id="pv-actual">-</div>
             <div class="pivot-card-sub" id="pv-actual-sub">From last import</div>
           </div>
           <div class="pivot-card">
-            <div class="pivot-card-label">Ideal Target (Now)</div>
+            <div class="pivot-card-label"><span class="pivot-tag pack">Pack</span>Ideal Target (Now)</div>
             <div class="pivot-card-value accent" id="pv-ideal">-</div>
             <div class="pivot-card-sub" id="pv-ideal-sub">- prod min elapsed</div>
           </div>
           <div class="pivot-card">
-            <div class="pivot-card-label">Variance</div>
+            <div class="pivot-card-label"><span class="pivot-tag pack">Pack</span>Variance</div>
             <div class="pivot-card-value white" id="pv-variance">-</div>
             <div class="pivot-card-sub" id="pv-variance-sub">units vs ideal</div>
           </div>
           <div class="pivot-card">
-            <div class="pivot-card-label">Current UPH</div>
+            <div class="pivot-card-label"><span class="pivot-tag pack">Pack</span>Current UPH</div>
             <div class="pivot-card-value white" id="pv-uph">-</div>
             <div class="pivot-card-sub" id="pv-uph-sub">Target: -</div>
           </div>
           <div class="pivot-card">
-            <div class="pivot-card-label">Prod Min Left</div>
+            <div class="pivot-card-label"><span class="pivot-tag pack">Pack</span>Prod Min Left</div>
             <div class="pivot-card-value white" id="pv-prodleft">-</div>
             <div class="pivot-card-sub" id="pv-prodleft-sub">of - total</div>
           </div>
@@ -373,27 +378,27 @@
         <div class="pivot-section-title">Live - From Last Import (Pick)</div>
         <div id="pivot-card-grid-pick">
           <div class="pivot-card">
-            <div class="pivot-card-label">Actual (Pick so far)</div>
+            <div class="pivot-card-label"><span class="pivot-tag pick">Pick</span>Actual (so far)</div>
             <div class="pivot-card-value white" id="pv-pick-actual">-</div>
             <div class="pivot-card-sub" id="pv-pick-actual-sub">From last import</div>
           </div>
           <div class="pivot-card">
-            <div class="pivot-card-label">Ideal Target (Now)</div>
+            <div class="pivot-card-label"><span class="pivot-tag pick">Pick</span>Ideal Target (Now)</div>
             <div class="pivot-card-value accent" id="pv-pick-ideal">-</div>
             <div class="pivot-card-sub" id="pv-pick-ideal-sub">- prod min elapsed</div>
           </div>
           <div class="pivot-card">
-            <div class="pivot-card-label">Variance</div>
+            <div class="pivot-card-label"><span class="pivot-tag pick">Pick</span>Variance</div>
             <div class="pivot-card-value white" id="pv-pick-variance">-</div>
             <div class="pivot-card-sub" id="pv-pick-variance-sub">units vs ideal</div>
           </div>
           <div class="pivot-card">
-            <div class="pivot-card-label">Current UPH</div>
+            <div class="pivot-card-label"><span class="pivot-tag pick">Pick</span>Current UPH</div>
             <div class="pivot-card-value white" id="pv-pick-uph">-</div>
             <div class="pivot-card-sub" id="pv-pick-uph-sub">Target: -</div>
           </div>
           <div class="pivot-card">
-            <div class="pivot-card-label">Prod Min Left</div>
+            <div class="pivot-card-label"><span class="pivot-tag pick">Pick</span>Prod Min Left</div>
             <div class="pivot-card-value white" id="pv-pick-prodleft">-</div>
             <div class="pivot-card-sub" id="pv-pick-prodleft-sub">of - total</div>
           </div>
@@ -402,23 +407,23 @@
         <div class="pivot-section-title">Projected End-of-Shift</div>
         <div id="pivot-projection-grid">
           <div class="pivot-card">
-            <div class="pivot-card-label">Projected (Live Pace)</div>
+            <div class="pivot-card-label"><span class="pivot-tag pack">Pack</span>Projected (Live Pace)</div>
             <div class="pivot-card-value white" id="pv-projected">-</div>
             <div class="pivot-card-sub">At current live pace</div>
           </div>
           <div class="pivot-card">
-            <div class="pivot-card-label">Goal</div>
+            <div class="pivot-card-label"><span class="pivot-tag pack">Pack</span>Goal</div>
             <div class="pivot-card-value accent" id="pv-goal">-</div>
             <div class="pivot-card-sub">Combined Pack target</div>
           </div>
           <div class="pivot-card pivot-card-wide">
             <div class="pivot-card-split-row">
               <div class="pivot-card-split-col">
-                <div class="pivot-card-label">Projected (Assigned UPH)</div>
+                <div class="pivot-card-label"><span class="pivot-tag pack">Pack</span>Projected (Assigned UPH)</div>
                 <div class="pivot-card-value white" id="pv-projected-assigned">-</div>
               </div>
               <div class="pivot-card-split-col">
-                <div class="pivot-card-label">At Rate</div>
+                <div class="pivot-card-label"><span class="pivot-tag pack">Pack</span>At Rate</div>
                 <div class="pivot-card-value white" id="pv-at-rate">-</div>
               </div>
             </div>
@@ -427,11 +432,11 @@
           <div class="pivot-card pivot-card-wide">
             <div class="pivot-card-split-row">
               <div class="pivot-card-split-col">
-                <div class="pivot-card-label">Projected (Assigned UPH) - Pick</div>
+                <div class="pivot-card-label"><span class="pivot-tag pick">Pick</span>Projected (Assigned UPH)</div>
                 <div class="pivot-card-value white" id="pv-pick-projected-assigned">-</div>
               </div>
               <div class="pivot-card-split-col">
-                <div class="pivot-card-label">At Rate - Pick</div>
+                <div class="pivot-card-label"><span class="pivot-tag pick">Pick</span>At Rate</div>
                 <div class="pivot-card-value white" id="pv-pick-at-rate">-</div>
               </div>
             </div>
