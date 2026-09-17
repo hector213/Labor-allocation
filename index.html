@@ -159,6 +159,7 @@
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;}
   .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 10px;}
   #trend-panel{margin-top:16px;}
+  .inbound-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px;align-items:start;}
   .trend-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;}
   .trend-title-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .pace-badge{display:inline-block;padding:3px 12px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;}
@@ -302,6 +303,7 @@
     <nav>
       <button id="nav-board" class="active">Board</button>
       <button id="nav-trend">Pick &amp; Pack Trend</button>
+      <button id="nav-inbound">Inbound</button>
       <button id="nav-assoc-trend">Associate UPH</button>
       <button id="nav-assoc-numbers">Associate Numbers</button>
       <button id="nav-admin">Admin</button>
@@ -471,6 +473,54 @@
           minutes = 550 production minutes, 9.1667h). It targets 100% at the end of the normal
           shift length; if today's import shows units still coming in during the extra hour, it
           automatically stretches the target window to match instead of assuming every day runs long.
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- INBOUND VIEW ---------- -->
+    <!-- Receiving (151) and Putaway (212), both always visible side by side (no toggle) - same
+         Actual vs Ideal Target cumulative-line idea as the Shift Trend tab, just two independent
+         charts instead of one with a toggle. Goals come from Admin > Shift Goals for the Inbound
+         Receiver / Inbound Putaway functions. See renderInboundCharts(). -->
+    <section id="inbound-view" class="hidden">
+      <div class="inbound-grid">
+        <div class="panel">
+          <div class="trend-header">
+            <div class="trend-title-row">
+              <h2 style="margin:0;">Receiving</h2>
+              <span class="pace-badge none" id="inbound-receiving-pace-badge">No goal set</span>
+            </div>
+          </div>
+          <div class="trend-stats">
+            <div class="shift-stat">Actual so far <b id="inbound-receiving-actual">0</b></div>
+            <div class="shift-stat">Ideal target so far <b id="inbound-receiving-ideal">0</b></div>
+            <div class="shift-stat">Variance <b id="inbound-receiving-variance">0</b></div>
+            <div class="shift-stat">Avg UPH (live) <b id="inbound-receiving-avg-uph">0.0</b></div>
+          </div>
+          <canvas id="inbound-receiving-chart" height="110"></canvas>
+          <div class="note" id="inbound-receiving-note" style="margin-top:10px;">
+            Actual units scanned today (Tran Type 151) vs the Ideal Target line, prorated across
+            production minutes from the Inbound Receiver goal set in Admin &gt; Shift Goals.
+          </div>
+        </div>
+        <div class="panel">
+          <div class="trend-header">
+            <div class="trend-title-row">
+              <h2 style="margin:0;">Putaway</h2>
+              <span class="pace-badge none" id="inbound-putaway-pace-badge">No goal set</span>
+            </div>
+          </div>
+          <div class="trend-stats">
+            <div class="shift-stat">Actual so far <b id="inbound-putaway-actual">0</b></div>
+            <div class="shift-stat">Ideal target so far <b id="inbound-putaway-ideal">0</b></div>
+            <div class="shift-stat">Variance <b id="inbound-putaway-variance">0</b></div>
+            <div class="shift-stat">Avg UPH (live) <b id="inbound-putaway-avg-uph">0.0</b></div>
+          </div>
+          <canvas id="inbound-putaway-chart" height="110"></canvas>
+          <div class="note" id="inbound-putaway-note" style="margin-top:10px;">
+            Actual units scanned today (Tran Type 212) vs the Ideal Target line, prorated across
+            production minutes from the Inbound Putaway goal set in Admin &gt; Shift Goals.
+          </div>
         </div>
       </div>
     </section>
@@ -977,17 +1027,20 @@ auth.onAuthStateChanged(user => {
    ====================================================================== */
 document.getElementById("nav-board").addEventListener("click", () => showView("board"));
 document.getElementById("nav-trend").addEventListener("click", () => showView("trend"));
+document.getElementById("nav-inbound").addEventListener("click", () => showView("inbound"));
 document.getElementById("nav-assoc-trend").addEventListener("click", () => showView("assoc-trend"));
 document.getElementById("nav-assoc-numbers").addEventListener("click", () => showView("assoc-numbers"));
 document.getElementById("nav-admin").addEventListener("click", () => showView("admin"));
 function showView(v) {
   document.getElementById("board-view").classList.toggle("hidden", v !== "board");
   document.getElementById("trend-view").classList.toggle("hidden", v !== "trend");
+  document.getElementById("inbound-view").classList.toggle("hidden", v !== "inbound");
   document.getElementById("assoc-trend-view").classList.toggle("hidden", v !== "assoc-trend");
   document.getElementById("assoc-numbers-view").classList.toggle("hidden", v !== "assoc-numbers");
   document.getElementById("admin-view").classList.toggle("hidden", v !== "admin");
   document.getElementById("nav-board").classList.toggle("active", v === "board");
   document.getElementById("nav-trend").classList.toggle("active", v === "trend");
+  document.getElementById("nav-inbound").classList.toggle("active", v === "inbound");
   document.getElementById("nav-assoc-trend").classList.toggle("active", v === "assoc-trend");
   document.getElementById("nav-assoc-numbers").classList.toggle("active", v === "assoc-numbers");
   document.getElementById("nav-admin").classList.toggle("active", v === "admin");
@@ -999,6 +1052,10 @@ function showView(v) {
     if (trendChartInstance) {
       requestAnimationFrame(() => trendChartInstance.resize());
     }
+  }
+  if (v === "inbound") {
+    renderInboundCharts();
+    Object.values(inboundChartInstances).forEach(ch => requestAnimationFrame(() => ch.resize()));
   }
   if (v === "assoc-trend") {
     renderAssocTrendChart();
@@ -1081,6 +1138,7 @@ function watchShift(shiftDate) {
     renderBoard();
     renderGoalsAdmin();
     renderTrendChart();
+    renderInboundCharts();
   });
   if (unsubTrend) unsubTrend();
   shiftTrendDocs = {};
@@ -1088,6 +1146,7 @@ function watchShift(shiftDate) {
     shiftTrendDocs = {};
     snap.docs.forEach(d => { shiftTrendDocs[d.data().tranType] = d.data(); });
     renderTrendChart();
+    renderInboundCharts();
   });
   // Every associate's per-Tran-Type bucket data for today, in one query - this is what lets the
   // Board attribute a shared-Tran-Type function's occupant/station "Actual" figures to the
@@ -1542,6 +1601,7 @@ function renderBoard() {
   renderLaborPivot(elapsedMinNow, pivotByFn);
   renderScheduleBar(elapsedMinNow);
   renderTrendChart();
+  renderInboundCharts();
 }
 
 // Which non-production window (if any) elapsedMinNow currently falls in, matching the labeled
@@ -1965,19 +2025,13 @@ document.querySelectorAll(".trend-toggle-btn").forEach(btn => {
   });
 });
 
-function renderTrendChart() {
-  const canvas = document.getElementById("trend-chart");
-  if (!canvas) return; // not rendered yet
-  if (typeof Chart === "undefined") {
-    // Chart.js didn't load from the CDN (bad version pin, ad blocker, offline) - surface that
-    // instead of silently leaving the chart blank with no clue why.
-    const note = document.getElementById("trend-note");
-    if (note) note.textContent = "Chart.js failed to load from the CDN, so the trend chart can't render. Check your internet connection or an ad blocker, then hard-refresh.";
-    return;
-  }
-
+// Shared by the Shift Trend tab (Pack/Pick toggle) and the Inbound tab (Receiving/Putaway, no
+// toggle - both shown at once): actual-vs-ideal cumulative series for one Tran Type, spread
+// across production minutes only, targeting 100% at the nominal shift end unless today's data
+// shows units still landing in the grace hour (same auto-detect logic in both callers).
+function computeTrendSeries(tranType) {
   const buckets = shiftBucketList();
-  const doc = shiftTrendDocs[selectedTrendTran];
+  const doc = shiftTrendDocs[tranType];
   const bucketUnits = buckets.map(() => 0);
   if (doc && Array.isArray(doc.buckets)) {
     doc.buckets.forEach((b, i) => { if (i < bucketUnits.length) bucketUnits[i] = b.units || 0; });
@@ -1986,22 +2040,11 @@ function renderTrendChart() {
   // Combined goal for whichever functions share this Tran Type (e.g. Small/Large/WOS Pack for
   // 315; OP/MOD/Walkie/WOS Pick for 301) - same "Combined goal" concept as the hero stat bar,
   // just generalized beyond Pack.
-  const groupFnKeys = Object.keys(FUNCTIONS).filter(k => FUNCTIONS[k].tranType === selectedTrendTran);
+  const groupFnKeys = Object.keys(FUNCTIONS).filter(k => FUNCTIONS[k].tranType === tranType);
   const dailyTarget = shiftGoalsToday
     .filter(g => groupFnKeys.includes(g.functionKey))
     .reduce((s, g) => s + (g.targetUnits || 0), 0);
 
-  // Spread dailyTarget across production minutes (clock time minus the 2 breaks + lunch),
-  // not raw elapsed clock time, so the ideal line matches the Packing_Trend sheet instead of
-  // climbing straight through a break.
-  //
-  // The goal should hit 100% at the end of the NOMINAL shift (shiftLengthHours), not the
-  // extended grace-hour window the bucket list displays - the grace hour is just buffer for
-  // days that run long, not part of every day's target. Whether "today" is one of those long
-  // days isn't known in advance, so it's auto-detected from the imported data itself: if any
-  // units have landed in a bucket past the nominal end, today ran into the extra hour, and the
-  // target window stretches to match; otherwise the target line goes flat at the nominal end
-  // (matches shift progress %/Expected-by-now above, which already use nominal length only).
   const breaks = shiftBreakOffsetsMinutes();
   const nominalWindowMin = appSettings.shiftLengthHours * 60;
   const nominalEndBucketIdx = Math.floor(nominalWindowMin / 30);
@@ -2020,14 +2063,40 @@ function renderTrendChart() {
     idealCum.push(totalProdMin > 0 ? Math.round(dailyTarget * (prodMinSoFar / totalProdMin)) : 0);
   });
 
-  // "So far" = the bucket containing right now, so the summary stats above the chart read as a
-  // live snapshot rather than the full-shift end totals.
+  // "So far" = the bucket containing right now, so summary stats read as a live snapshot rather
+  // than the full-shift end totals.
   const now = new Date();
   const hh = now.getHours() + now.getMinutes() / 60;
   let soFarIdx = bucketIndexForHour(hh, buckets);
   if (soFarIdx === -1) soFarIdx = buckets.length - 1;
   const actualSoFar = actualCum[soFarIdx] || 0;
   const idealSoFar = idealCum[soFarIdx] || 0;
+
+  // Team avg UPH (live): actual units so far / production hours elapsed since shift start.
+  let shiftStart = new Date(currentShiftDate + "T00:00:00");
+  shiftStart.setHours(Math.floor(appSettings.shiftStartHour), (appSettings.shiftStartHour % 1) * 60, 0, 0);
+  let elapsedMs = now - shiftStart;
+  if (elapsedMs < 0) elapsedMs += 24 * 3600000;
+  const windowHours = appSettings.shiftLengthHours + (appSettings.shiftGraceHours || 0);
+  const elapsedHours = Math.max(0, Math.min(elapsedMs / 3600000, windowHours));
+  const avgUphLive = elapsedHours > 0 ? actualSoFar / elapsedHours : 0;
+
+  const labels = buckets.map(b => b.label);
+  return { labels, actualCum, idealCum, actualSoFar, idealSoFar, dailyTarget, avgUphLive };
+}
+
+function renderTrendChart() {
+  const canvas = document.getElementById("trend-chart");
+  if (!canvas) return; // not rendered yet
+  if (typeof Chart === "undefined") {
+    // Chart.js didn't load from the CDN (bad version pin, ad blocker, offline) - surface that
+    // instead of silently leaving the chart blank with no clue why.
+    const note = document.getElementById("trend-note");
+    if (note) note.textContent = "Chart.js failed to load from the CDN, so the trend chart can't render. Check your internet connection or an ad blocker, then hard-refresh.";
+    return;
+  }
+
+  const { labels, actualCum, idealCum, actualSoFar, idealSoFar, dailyTarget, avgUphLive } = computeTrendSeries(selectedTrendTran);
 
   document.getElementById("trend-actual").textContent = Math.round(actualSoFar);
   document.getElementById("trend-ideal").textContent = dailyTarget > 0 ? Math.round(idealSoFar) : "- (no goal set)";
@@ -2055,18 +2124,8 @@ function renderTrendChart() {
     varEl.className = "";
     if (badgeEl) { badgeEl.textContent = "No goal set"; badgeEl.className = "pace-badge none"; }
   }
-
-  // Team avg UPH (live): actual units so far / production hours elapsed since shift start.
-  let shiftStart = new Date(currentShiftDate + "T00:00:00");
-  shiftStart.setHours(Math.floor(appSettings.shiftStartHour), (appSettings.shiftStartHour % 1) * 60, 0, 0);
-  let elapsedMs = now - shiftStart;
-  if (elapsedMs < 0) elapsedMs += 24 * 3600000;
-  const windowHours = appSettings.shiftLengthHours + (appSettings.shiftGraceHours || 0);
-  const elapsedHours = Math.max(0, Math.min(elapsedMs / 3600000, windowHours));
-  const avgUphLive = elapsedHours > 0 ? actualSoFar / elapsedHours : 0;
   document.getElementById("trend-avg-uph").textContent = avgUphLive.toFixed(1);
 
-  const labels = buckets.map(b => b.label);
   const datasets = [
     { label: "Actual Cumulative", data: actualCum, borderColor: "#2f6fed", backgroundColor: "transparent", tension: 0.15, pointRadius: 2 },
     { label: "Ideal Target Cumulative", data: idealCum, borderColor: "#9aa4b2", borderDash: [6, 4], backgroundColor: "transparent", tension: 0, pointRadius: 0 }
@@ -2088,6 +2147,80 @@ function renderTrendChart() {
       }
     });
   }
+}
+
+/* ======================================================================
+   INBOUND VIEW - Receiving (151) and Putaway (212), always shown side by side (no toggle,
+   unlike the Pick & Pack Trend tab) since Hector wants both actual-vs-goal pictures visible at
+   once. Same computeTrendSeries() helper as the Trend tab, just rendered into two independent
+   charts/stat blocks. Goals come from Admin > Shift Goals (Inbound Receiver / Inbound Putaway).
+   ====================================================================== */
+const INBOUND_CHARTS = [
+  { tranType: "151", prefix: "inbound-receiving", color: "#2f6fed" },
+  { tranType: "212", prefix: "inbound-putaway", color: "#f5a623" }
+];
+let inboundChartInstances = {};
+
+function renderInboundCharts() {
+  INBOUND_CHARTS.forEach(cfg => {
+    const canvas = document.getElementById(`${cfg.prefix}-chart`);
+    if (!canvas) return; // not rendered yet
+    if (typeof Chart === "undefined") {
+      const note = document.getElementById(`${cfg.prefix}-note`);
+      if (note) note.textContent = "Chart.js failed to load from the CDN, so this chart can't render. Check your internet connection or an ad blocker, then hard-refresh.";
+      return;
+    }
+
+    const { labels, actualCum, idealCum, actualSoFar, idealSoFar, dailyTarget, avgUphLive } = computeTrendSeries(cfg.tranType);
+
+    document.getElementById(`${cfg.prefix}-actual`).textContent = Math.round(actualSoFar);
+    document.getElementById(`${cfg.prefix}-ideal`).textContent = dailyTarget > 0 ? Math.round(idealSoFar) : "- (no goal set)";
+    const varEl = document.getElementById(`${cfg.prefix}-variance`);
+    const badgeEl = document.getElementById(`${cfg.prefix}-pace-badge`);
+    if (dailyTarget > 0) {
+      const diff = actualSoFar - idealSoFar;
+      varEl.textContent = (diff >= 0 ? "+" : "") + Math.round(diff);
+      varEl.className = diff >= 0 ? "pos" : "neg";
+      if (badgeEl) {
+        const band = 0.05;
+        const pctDiff = idealSoFar > 0 ? diff / idealSoFar : (diff > 0 ? band + 1 : 0);
+        let state, label;
+        if (pctDiff > band) { state = "ahead"; label = "Ahead of Pace"; }
+        else if (pctDiff < -band) { state = "behind"; label = "Behind Pace"; }
+        else { state = "on"; label = "On Pace"; }
+        badgeEl.textContent = label;
+        badgeEl.className = "pace-badge " + state;
+      }
+    } else {
+      varEl.textContent = "-";
+      varEl.className = "";
+      if (badgeEl) { badgeEl.textContent = "No goal set"; badgeEl.className = "pace-badge none"; }
+    }
+    document.getElementById(`${cfg.prefix}-avg-uph`).textContent = avgUphLive.toFixed(1);
+
+    const datasets = [
+      { label: "Actual Cumulative", data: actualCum, borderColor: cfg.color, backgroundColor: "transparent", tension: 0.15, pointRadius: 2 },
+      { label: "Ideal Target Cumulative", data: idealCum, borderColor: "#9aa4b2", borderDash: [6, 4], backgroundColor: "transparent", tension: 0, pointRadius: 0 }
+    ];
+    const existing = inboundChartInstances[cfg.tranType];
+    if (existing) {
+      existing.data.labels = labels;
+      existing.data.datasets[0].data = actualCum;
+      existing.data.datasets[1].data = idealCum;
+      existing.update();
+    } else {
+      inboundChartInstances[cfg.tranType] = new Chart(canvas, {
+        type: "line",
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          interaction: { mode: "index", intersect: false },
+          plugins: { legend: { position: "bottom" } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+  });
 }
 
 /* ======================================================================
