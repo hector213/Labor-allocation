@@ -85,7 +85,7 @@
   #pivot-status-banner.goal{background:#1e3a5f;color:#93c5fd;}
 
   .pivot-section-title{width:100%;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin:4px 0 2px;}
-  #pivot-card-grid, #pivot-projection-grid{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
+  #pivot-card-grid, #pivot-card-grid-pick, #pivot-projection-grid{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
   .pivot-card-wide{grid-column:span 2;}
   .pivot-card-split-row{display:flex;gap:24px;}
   .pivot-card-split-col{flex:1;min-width:0;}
@@ -369,6 +369,35 @@
           </div>
         </div>
 
+        <div class="pivot-section-title">Live &mdash; From Last Import (Pick)</div>
+        <div id="pivot-card-grid-pick">
+          <div class="pivot-card">
+            <div class="pivot-card-label">Actual (Pick so far)</div>
+            <div class="pivot-card-value white" id="pv-pick-actual">&mdash;</div>
+            <div class="pivot-card-sub" id="pv-pick-actual-sub">From last import</div>
+          </div>
+          <div class="pivot-card">
+            <div class="pivot-card-label">Ideal Target (Now)</div>
+            <div class="pivot-card-value accent" id="pv-pick-ideal">&mdash;</div>
+            <div class="pivot-card-sub" id="pv-pick-ideal-sub">&mdash; prod min elapsed</div>
+          </div>
+          <div class="pivot-card">
+            <div class="pivot-card-label">Variance</div>
+            <div class="pivot-card-value white" id="pv-pick-variance">&mdash;</div>
+            <div class="pivot-card-sub" id="pv-pick-variance-sub">units vs ideal</div>
+          </div>
+          <div class="pivot-card">
+            <div class="pivot-card-label">Current UPH</div>
+            <div class="pivot-card-value white" id="pv-pick-uph">&mdash;</div>
+            <div class="pivot-card-sub" id="pv-pick-uph-sub">Target: &mdash;</div>
+          </div>
+          <div class="pivot-card">
+            <div class="pivot-card-label">Prod Min Left</div>
+            <div class="pivot-card-value white" id="pv-pick-prodleft">&mdash;</div>
+            <div class="pivot-card-sub" id="pv-pick-prodleft-sub">of &mdash; total</div>
+          </div>
+        </div>
+
         <div class="pivot-section-title">Projected End-of-Shift</div>
         <div id="pivot-projection-grid">
           <div class="pivot-card">
@@ -393,6 +422,19 @@
               </div>
             </div>
             <div class="pivot-card-sub" id="pv-projected-assigned-sub">Based on who's on the floor now</div>
+          </div>
+          <div class="pivot-card pivot-card-wide">
+            <div class="pivot-card-split-row">
+              <div class="pivot-card-split-col">
+                <div class="pivot-card-label">Projected (Assigned UPH) &mdash; Pick</div>
+                <div class="pivot-card-value white" id="pv-pick-projected-assigned">&mdash;</div>
+              </div>
+              <div class="pivot-card-split-col">
+                <div class="pivot-card-label">At Rate &mdash; Pick</div>
+                <div class="pivot-card-value white" id="pv-pick-at-rate">&mdash;</div>
+              </div>
+            </div>
+            <div class="pivot-card-sub" id="pv-pick-projected-assigned-sub">Based on who's on the floor now</div>
           </div>
         </div>
 
@@ -905,6 +947,10 @@ const ZONES = [
    the number that varies with items-per-order (1, 3, 5...) and is what gets compared against
    the Shift Cost Sheet's Packs (315) units. */
 const PACKOUT_TRAN_TYPE = "315";
+// Tran Type for the "Projected (Assigned UPH) / At Rate - Pick" pill - OP/MOD/Walkie/WOS Pick
+// all share 301, same grouping the Pick & Pack Trend tab's "Pick" toggle already uses. Replen
+// Pick (305) is a different Tran Type and isn't part of this Combined Pick figure.
+const PICK_TRAN_TYPE = "301";
 
 /* ======================================================================
    STATE (populated by Firestore listeners)
@@ -1427,6 +1473,9 @@ function renderBoard() {
   // whether or not their specific station has its own goal set (headcount/live-UPH should reflect
   // who's actually assigned to Pack right now, not just goal-bearing stations).
   let packHeadcount = 0, packUphSum = 0, packAtRateUnits = 0;
+  // Same idea, mirrored for Combined Pick (301) - feeds the "Projected (Assigned UPH) / At Rate -
+  // Pick" pill next to the Pack one.
+  let pickHeadcount = 0, pickTotalProjected = 0, pickTotalGoal = 0, pickAtRateUnits = 0;
 
   // Labor Pivot accumulator, keyed by functionKey - aggregates across every station that shares
   // a function (normally just one, since each bucket function is a single drop zone, but this
@@ -1560,6 +1609,14 @@ function renderBoard() {
         packAtRateUnits += atRateUnits;
       }
 
+      // Mirrors the Pack block above, but for Combined Pick (301).
+      if (st.tranType === PICK_TRAN_TYPE) {
+        pickTotalProjected += projectedUnits;
+        if (goal) pickTotalGoal += goal.targetUnits;
+        pickHeadcount += occupants.length;
+        pickAtRateUnits += atRateUnits;
+      }
+
       // Labor Pivot: every function WITH a goal set today feeds the planner, not just Pack -
       // unlike the hero stat bar above, this recommends headcount moves shift-wide.
       if (goal) {
@@ -1597,6 +1654,10 @@ function renderBoard() {
   const packoutSoFar = uphHistory
     .filter(h => h.shiftDate === currentShiftDate && h.tranType === PACKOUT_TRAN_TYPE)
     .reduce((s, h) => s + (h.units || 0), 0);
+  // Same idea, mirrored for Combined Pick (301) - feeds the "Live - From Last Import (Pick)" row.
+  const pickSoFar = uphHistory
+    .filter(h => h.shiftDate === currentShiftDate && h.tranType === PICK_TRAN_TYPE)
+    .reduce((s, h) => s + (h.units || 0), 0);
 
   // Clock minutes elapsed since shift start (feeds both the hero and the schedule bar below).
   const now = new Date();
@@ -1611,6 +1672,11 @@ function renderBoard() {
     headcount: packHeadcount, uphSum: packUphSum, atRateUnits: packAtRateUnits,
     elapsedMinNow
   });
+  renderPickAssignedPill({
+    totalGoal: pickTotalGoal, totalProjected: pickTotalProjected,
+    atRateUnits: pickAtRateUnits, headcount: pickHeadcount
+  });
+  renderPickLivePills({ actual: pickSoFar, totalGoal: pickTotalGoal, elapsedMinNow });
   renderLaborPivot(elapsedMinNow, pivotByFn);
   renderScheduleBar(elapsedMinNow);
   renderTrendChart();
@@ -1814,6 +1880,71 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
     recEl.textContent = `PIVOT NEEDED - add ${extraPeople} associates to hit ${Math.round(totalGoal).toLocaleString()} units. Required rate: ${Math.round(rateNeeded)} UPH vs current ${liveUph.toFixed(1)} UPH. Act now - ${Math.round(remainingProdMin)} prod min remaining.`;
     if (periodLabel === "Production" || periodLabel === "Extra") { banner.className = "behind"; banner.textContent = `BEHIND BY ${Math.abs(Math.round(variance)).toLocaleString()} UNITS - PIVOT NEEDED`; }
   }
+}
+
+// Mirrors the "Projected (Assigned UPH) / At Rate" wide pill in renderPivotHero() above, but
+// scoped to Combined Pick (301) instead of Combined Pack (315). Deliberately just the one pill -
+// Pick doesn't get its own status banner/Labor Pivot Analysis box, since Labor Pivot Analysis
+// below already covers every goal-bearing function (including Pick) shift-wide.
+function renderPickAssignedPill({ totalGoal, totalProjected, atRateUnits, headcount }) {
+  const projAssignedEl = document.getElementById("pv-pick-projected-assigned");
+  const roundedAssigned = Math.round(totalProjected);
+  if (totalGoal > 0) {
+    projAssignedEl.textContent = roundedAssigned.toLocaleString();
+    projAssignedEl.className = "pivot-card-value " + (roundedAssigned >= totalGoal ? "green" : roundedAssigned >= totalGoal * 0.95 ? "yellow" : "red");
+  } else {
+    projAssignedEl.textContent = roundedAssigned ? roundedAssigned.toLocaleString() : "-";
+    projAssignedEl.className = "pivot-card-value white";
+  }
+  const roundedAtRate = Math.round(atRateUnits);
+  const atRateEl = document.getElementById("pv-pick-at-rate");
+  if (totalGoal > 0) {
+    atRateEl.textContent = roundedAtRate.toLocaleString();
+    atRateEl.className = "pivot-card-value " + (roundedAtRate >= totalGoal ? "green" : roundedAtRate >= totalGoal * 0.95 ? "yellow" : "red");
+  } else {
+    atRateEl.textContent = roundedAtRate ? roundedAtRate.toLocaleString() : "-";
+    atRateEl.className = "pivot-card-value white";
+  }
+  document.getElementById("pv-pick-projected-assigned-sub").textContent =
+    headcount > 0 ? `${headcount} assigned to Pick now` : "No one assigned to Pick yet";
+}
+
+// Mirrors the "Live - From Last Import" 5-pill row in renderPivotHero() above (Actual, Ideal
+// Target Now, Variance, Current UPH, Prod Min Left), scoped to Combined Pick (301) instead of
+// Combined Pack (315). Prod Min Left is the same shift-wide clock either way, but it's repeated
+// here so the Pick row reads as a complete, self-contained set alongside the Pack one.
+function renderPickLivePills({ actual, totalGoal, elapsedMinNow }) {
+  const breaks = shiftBreakOffsetsMinutes();
+  const nominalProdMin = productionMinutesElapsed(appSettings.shiftLengthHours * 60, breaks);
+  const prodMinElapsed = Math.min(nominalProdMin, productionMinutesElapsed(Math.max(0, elapsedMinNow), breaks));
+  const remainingProdMin = Math.max(0, nominalProdMin - prodMinElapsed);
+  const prodHoursElapsed = prodMinElapsed / 60;
+
+  const idealNow = nominalProdMin > 0 ? totalGoal * (prodMinElapsed / nominalProdMin) : 0;
+  const variance = actual - idealNow;
+  const liveUph = prodHoursElapsed > 0 ? actual / prodHoursElapsed : 0;
+  const impliedTargetUph = nominalProdMin > 0 && totalGoal > 0 ? totalGoal / (nominalProdMin / 60) : 0;
+
+  document.getElementById("pv-pick-actual").textContent = Math.round(actual).toLocaleString();
+  document.getElementById("pv-pick-ideal").textContent = Math.round(idealNow).toLocaleString();
+  document.getElementById("pv-pick-ideal-sub").textContent = `${Math.round(prodMinElapsed)} prod min elapsed`;
+
+  const varEl = document.getElementById("pv-pick-variance");
+  varEl.textContent = (variance >= 0 ? "+" : "") + Math.round(variance).toLocaleString();
+  varEl.className = "pivot-card-value " + (variance >= 0 ? "green" : "red");
+  document.getElementById("pv-pick-variance-sub").textContent = variance >= 0 ? "ahead of ideal" : "behind ideal";
+
+  const uphEl = document.getElementById("pv-pick-uph");
+  if (prodHoursElapsed > 0) {
+    uphEl.textContent = liveUph.toFixed(1);
+    uphEl.className = "pivot-card-value " + (liveUph >= impliedTargetUph * 0.95 ? "green" : liveUph >= impliedTargetUph * 0.85 ? "yellow" : "red");
+  } else {
+    uphEl.textContent = "-"; uphEl.className = "pivot-card-value white";
+  }
+  document.getElementById("pv-pick-uph-sub").textContent = `Target: ${impliedTargetUph ? Math.round(impliedTargetUph) : "-"}`;
+
+  document.getElementById("pv-pick-prodleft").textContent = Math.round(remainingProdMin);
+  document.getElementById("pv-pick-prodleft-sub").textContent = `of ${Math.round(nominalProdMin)} total`;
 }
 
 /* ======================================================================
