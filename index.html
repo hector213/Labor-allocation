@@ -131,6 +131,30 @@
   table#labor-pivot-table td.note{color:var(--hero-muted);padding:10px;white-space:normal;}
   table#labor-pivot-table td.pos{color:#7be3a4;} table#labor-pivot-table td.neg{color:#ff9b9b;}
 
+  /* Associate Numbers: screenshot-friendly leaderboard, grouped by Tran Type, ranked high to low. */
+  .assoc-numbers-title-row{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+  .assoc-numbers-title-row h2{font-size:20px;text-transform:none;letter-spacing:0;color:var(--text);margin:0;}
+  #assoc-numbers-sub{color:var(--muted);font-size:13px;}
+  .fn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+  .fn-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+  .fn-card h3{margin:0 0 2px;font-size:15px;}
+  .fn-card .fn-meta{color:var(--muted);font-size:12px;margin-bottom:12px;}
+  .fn-card .fn-meta b{color:var(--text);}
+  .fn-card .fn-empty{color:var(--muted);font-size:12px;padding:8px 0;}
+  .assoc-row{display:flex;align-items:center;gap:10px;padding:6px 0;position:relative;}
+  .assoc-row + .assoc-row{border-top:1px solid #f0f2f5;}
+  .assoc-row .rank{width:20px;flex-shrink:0;text-align:center;font-size:12px;font-weight:800;color:var(--muted);}
+  .assoc-row .rank.r1{color:#c9960c;} .assoc-row .rank.r2{color:#9aa4b2;} .assoc-row .rank.r3{color:#b3701f;}
+  .assoc-row .assoc-avatar{width:28px;height:28px;min-width:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;}
+  .assoc-row .assoc-name-wrap{flex:1;min-width:0;}
+  .assoc-row .assoc-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .assoc-row .assoc-bar-track{height:4px;background:#eef1f6;border-radius:2px;margin-top:3px;overflow:hidden;}
+  .assoc-row .assoc-bar-fill{height:100%;border-radius:2px;background:var(--accent);}
+  .assoc-row .assoc-units{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;min-width:44px;text-align:right;flex-shrink:0;}
+  .assoc-numbers-legend{display:flex;gap:16px;align-items:center;color:var(--muted);font-size:12px;margin-top:20px;flex-wrap:wrap;}
+  .assoc-numbers-legend span{display:flex;align-items:center;gap:5px;}
+  .assoc-numbers-legend .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+
   #board-grid{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start;}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;}
   .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 10px;}
@@ -279,6 +303,7 @@
       <button id="nav-board" class="active">Board</button>
       <button id="nav-trend">Pick &amp; Pack Trend</button>
       <button id="nav-assoc-trend">Associate UPH</button>
+      <button id="nav-assoc-numbers">Associate Numbers</button>
       <button id="nav-admin">Admin</button>
     </nav>
     <div>
@@ -504,6 +529,31 @@
           Large/WOS Pack all post as 315) &mdash; picking any one of those shows that associate's
           combined activity across all of them for that Tran Type. The table beside the chart is
           the actual raw units scanned in each clock hour &mdash; not an average, not smoothed.
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- ASSOCIATE NUMBERS VIEW ---------- -->
+    <!-- Snapshot leaderboard meant to be screenshotted and sent to the team: every associate with
+         scanned units today, grouped by the 7 real Tran Types we track (not the 13 app functions -
+         several functions share a Tran Type and scan data can't tell them apart, e.g. OP/MOD/
+         Walkie/WOS Pick all post as 301), ranked highest actual units first within each group.
+         Built from the same reliable assocTrendDocsToday totals as the hero's "Pack-out so far"
+         stat - real scanned units, not a UPH×Hours projection. See renderAssocNumbers(). -->
+    <section id="assoc-numbers-view" class="hidden">
+      <div class="panel">
+        <div class="assoc-numbers-title-row">
+          <h2 style="margin:0;">Associate Numbers</h2>
+          <span class="page-sub" id="assoc-numbers-sub"></span>
+        </div>
+        <div class="note" style="margin:6px 0 16px;">
+          Every associate with scanned units today, grouped by transaction type, highest actual units first &mdash; built to screenshot and send to the team.
+        </div>
+        <div class="fn-grid" id="assoc-numbers-grid"></div>
+        <div class="assoc-numbers-legend">
+          <span><span class="dot" style="background:#c9960c"></span> Gold = #1 in group</span>
+          <span><span class="dot" style="background:#9aa4b2"></span> Silver = #2</span>
+          <span><span class="dot" style="background:#b3701f"></span> Bronze = #3</span>
         </div>
       </div>
     </section>
@@ -918,15 +968,18 @@ auth.onAuthStateChanged(user => {
 document.getElementById("nav-board").addEventListener("click", () => showView("board"));
 document.getElementById("nav-trend").addEventListener("click", () => showView("trend"));
 document.getElementById("nav-assoc-trend").addEventListener("click", () => showView("assoc-trend"));
+document.getElementById("nav-assoc-numbers").addEventListener("click", () => showView("assoc-numbers"));
 document.getElementById("nav-admin").addEventListener("click", () => showView("admin"));
 function showView(v) {
   document.getElementById("board-view").classList.toggle("hidden", v !== "board");
   document.getElementById("trend-view").classList.toggle("hidden", v !== "trend");
   document.getElementById("assoc-trend-view").classList.toggle("hidden", v !== "assoc-trend");
+  document.getElementById("assoc-numbers-view").classList.toggle("hidden", v !== "assoc-numbers");
   document.getElementById("admin-view").classList.toggle("hidden", v !== "admin");
   document.getElementById("nav-board").classList.toggle("active", v === "board");
   document.getElementById("nav-trend").classList.toggle("active", v === "trend");
   document.getElementById("nav-assoc-trend").classList.toggle("active", v === "assoc-trend");
+  document.getElementById("nav-assoc-numbers").classList.toggle("active", v === "assoc-numbers");
   document.getElementById("nav-admin").classList.toggle("active", v === "admin");
   if (v === "trend") {
     // The chart canvas was inside a display:none section until now, so Chart.js may have
@@ -942,6 +995,9 @@ function showView(v) {
     if (assocTrendChartInstance) {
       requestAnimationFrame(() => assocTrendChartInstance.resize());
     }
+  }
+  if (v === "assoc-numbers") {
+    renderAssocNumbers();
   }
 }
 
@@ -981,6 +1037,7 @@ function startListeners() {
     renderAssociatesAdmin();
     renderBoard();
     populateAssocTrendAssociateDropdown();
+    renderAssocNumbers();
   });
 
   // Keep last ~4 months of UPH history in memory; all averaging/trend math done client-side.
@@ -1035,6 +1092,7 @@ function watchShift(shiftDate) {
       assocTrendDocsToday[`${data.associateId}_${data.tranType}`] = data;
     });
     renderBoard();
+    renderAssocNumbers();
   });
   watchAssocTrend();
 }
@@ -2191,6 +2249,83 @@ function renderAssocTrendHourlyTable(buckets, bucketUnits, soFarIdx) {
     tr.innerHTML = `<td>${buckets[i].label}</td><td>${units}</td>`;
     tbody.appendChild(tr);
   }
+}
+
+/* ======================================================================
+   ASSOCIATE NUMBERS - screenshot-friendly leaderboard
+   ====================================================================== */
+// Grouped by the 7 real Tran Types Hector actually wants tracked - NOT the 13 app FUNCTIONS,
+// since several functions share a Tran Type and scan data can't tell them apart (OP/MOD/Walkie/
+// WOS Pick all post as 301; Small/Large/WOS Pack all post as 315; Large/Small Consolidation both
+// post as 311). Grouping at the Tran Type level sidesteps that ambiguity entirely - it's exactly
+// what the scan data actually records, no split-attribution guessing needed.
+const ASSOC_NUMBERS_GROUPS = [
+  { tranType: "151", label: "Receiving" },
+  { tranType: "212", label: "Inbound Putaway" },
+  { tranType: "305", label: "Replenishment Pick" },
+  { tranType: "301", label: "Picking" },
+  { tranType: "306", label: "Replenishment Putaway" },
+  { tranType: "315", label: "Packing" },
+  { tranType: "311", label: "Consolidation" }
+];
+
+function unitsTodayForTranType(associateId, tranType) {
+  const doc = assocTrendDocsToday[`${associateId}_${tranType}`];
+  if (!doc || !Array.isArray(doc.buckets)) return 0;
+  return doc.buckets.reduce((s, b) => s + (b.units || 0), 0);
+}
+
+function renderAssocNumbers() {
+  const grid = document.getElementById("assoc-numbers-grid");
+  if (!grid) return; // not rendered yet
+
+  const subEl = document.getElementById("assoc-numbers-sub");
+  if (subEl) {
+    const dateLabel = currentShiftDate ? new Date(currentShiftDate + "T00:00:00").toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: "numeric" }) : "";
+    const timeLabel = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    subEl.textContent = dateLabel ? `${dateLabel} · as of ${timeLabel}` : "";
+  }
+
+  grid.innerHTML = "";
+  ASSOC_NUMBERS_GROUPS.forEach(group => {
+    const rows = associates
+      .filter(a => !a.automated)
+      .map(a => ({ associate: a, units: unitsTodayForTranType(a.id, group.tranType) }))
+      .filter(r => r.units > 0)
+      .sort((x, y) => y.units - x.units);
+
+    const card = document.createElement("div");
+    card.className = "fn-card";
+    const total = rows.reduce((s, r) => s + r.units, 0);
+    card.innerHTML = `<h3>${group.label}</h3><div class="fn-meta"><b>${total.toLocaleString()}</b> units &middot; ${rows.length} associate${rows.length === 1 ? "" : "s"}</div>`;
+
+    if (!rows.length) {
+      const empty = document.createElement("div");
+      empty.className = "fn-empty";
+      empty.textContent = "No scanned units yet today.";
+      card.appendChild(empty);
+    } else {
+      const max = rows[0].units;
+      rows.forEach((r, i) => {
+        const pct = max > 0 ? Math.round((r.units / max) * 100) : 0;
+        const rankCls = i === 0 ? "r1" : i === 1 ? "r2" : i === 2 ? "r3" : "";
+        const barColor = i === 0 ? "#c9960c" : i === 1 ? "#9aa4b2" : i === 2 ? "#b3701f" : "";
+        const name = r.associate.name || r.associate.employeeId;
+        const row = document.createElement("div");
+        row.className = "assoc-row";
+        row.innerHTML = `
+          <div class="rank ${rankCls}">${i + 1}</div>
+          <div class="assoc-avatar" style="background:${colorForName(name)}">${initials(name)}</div>
+          <div class="assoc-name-wrap">
+            <div class="assoc-name">${name}</div>
+            <div class="assoc-bar-track"><div class="assoc-bar-fill" style="width:${pct}%;${barColor ? `background:${barColor};` : ""}"></div></div>
+          </div>
+          <div class="assoc-units">${r.units.toLocaleString()}</div>`;
+        card.appendChild(row);
+      });
+    }
+    grid.appendChild(card);
+  });
 }
 
 function associateCard(a, currentFunctionKey) {
