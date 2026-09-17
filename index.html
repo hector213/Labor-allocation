@@ -3125,14 +3125,19 @@ function associateIdByEmployeeIdMap() {
   return m;
 }
 
-// Sums cleaned (deduped) rows into the same 30-min buckets the Shift Trend chart reads, for
-// just the two Tran Types the chart cares about (315 Pack, 301 Pick) - everything else is
-// already covered by the per-associate uphHistory aggregation and doesn't need a bucket series.
+// Sums cleaned (deduped) rows into the same 30-min buckets the Shift Trend and Inbound charts
+// read. Originally this only built buckets for 315 (Pack) and 301 (Pick), since that was the
+// only chart that existed - the Inbound tab (151 Receiving, 212 Putaway) reused the same
+// shiftTrend collection later, but rows for those Tran Types were being filtered out here, so
+// their "Actual so far" stayed 0 no matter what the chart code did. Now every Tran Type that a
+// chart reads from shiftTrend is included; everything else is still skipped since it's already
+// covered by the per-associate uphHistory aggregation and doesn't need a bucket series.
+const TREND_BUCKET_TRAN_TYPES = ["315", "301", "151", "212"];
 function buildTrendBuckets(cleaned) {
   const buckets = shiftBucketList();
   const out = {};
   cleaned.forEach(r => {
-    if (r.tranType !== "315" && r.tranType !== "301") return;
+    if (!TREND_BUCKET_TRAN_TYPES.includes(r.tranType)) return;
     const hh = r.dateTime.getHours() + r.dateTime.getMinutes() / 60;
     const idx = bucketIndexForHour(hh, buckets);
     if (idx === -1) return;
