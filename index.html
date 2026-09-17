@@ -82,6 +82,9 @@
 
   .pivot-section-title{width:100%;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin:4px 0 2px;}
   #pivot-card-grid, #pivot-projection-grid{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
+  .pivot-card-wide{grid-column:span 2;}
+  .pivot-card-split-row{display:flex;gap:24px;}
+  .pivot-card-split-col{flex:1;min-width:0;}
   .pivot-card{background:#1a2f52;border:1px solid #2d4a7a;border-radius:10px;padding:12px 14px;}
   .pivot-card-label{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:5px;}
   .pivot-card-value{font-size:1.7rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
@@ -371,9 +374,17 @@
             <div class="pivot-card-value white" id="pv-goal">&mdash;</div>
             <div class="pivot-card-sub">Combined Pack target</div>
           </div>
-          <div class="pivot-card">
-            <div class="pivot-card-label">Projected (Assigned UPH)</div>
-            <div class="pivot-card-value white" id="pv-projected-assigned">&mdash;</div>
+          <div class="pivot-card pivot-card-wide">
+            <div class="pivot-card-split-row">
+              <div class="pivot-card-split-col">
+                <div class="pivot-card-label">Projected (Assigned UPH)</div>
+                <div class="pivot-card-value white" id="pv-projected-assigned">&mdash;</div>
+              </div>
+              <div class="pivot-card-split-col">
+                <div class="pivot-card-label">At Rate</div>
+                <div class="pivot-card-value white" id="pv-at-rate">&mdash;</div>
+              </div>
+            </div>
             <div class="pivot-card-sub" id="pv-projected-assigned-sub">Based on who's on the floor now</div>
           </div>
         </div>
@@ -1343,7 +1354,7 @@ function renderBoard() {
   // Combined-Pack accumulators for the hero card/analysis box below - every Pack (315) occupant,
   // whether or not their specific station has its own goal set (headcount/live-UPH should reflect
   // who's actually assigned to Pack right now, not just goal-bearing stations).
-  let packHeadcount = 0, packUphSum = 0, packSetUphSum = 0;
+  let packHeadcount = 0, packUphSum = 0, packAtRateUnits = 0;
 
   // Labor Pivot accumulator, keyed by functionKey - aggregates across every station that shares
   // a function (normally just one, since each bucket function is a single drop zone, but this
@@ -1386,6 +1397,7 @@ function renderBoard() {
       card.innerHTML = `<h3>${st.name}</h3><div class="target">Target ${st.setUPH} UPH${goal ? " · EOS Goal " + goal.targetUnits + " units" : ""}${capacityBit}</div>`;
 
       let projectedUnits = 0;
+      let atRateUnits = 0; // same hours, but at the station's Target UPH instead of each occupant's own avg/OJT-scaled rate
 
       if (st.type === "slot") {
         const dropZone = document.createElement("div");
@@ -1398,6 +1410,7 @@ function renderBoard() {
           const uph = effectiveUPH(a, st.functionKey, st.setUPH);
           const hrs = seg.hoursInFunction != null ? seg.hoursInFunction : (goal ? goal.plannedHours : 8);
           projectedUnits = uph * hrs;
+          atRateUnits = st.setUPH * hrs;
           dropZone.appendChild(occupantRow(seg, a, uph, hrs, st.functionKey));
         }
         card.appendChild(dropZone);
@@ -1433,6 +1446,7 @@ function renderBoard() {
           const uph = effectiveUPH(a, st.functionKey, st.setUPH);
           const hrs = seg.hoursInFunction != null ? seg.hoursInFunction : (goal ? goal.plannedHours : 8);
           projectedUnits += uph * hrs;
+          atRateUnits += st.setUPH * hrs;
           dropZone.appendChild(occupantRow(seg, a, uph, hrs, st.functionKey));
         });
         card.appendChild(dropZone);
@@ -1468,11 +1482,10 @@ function renderBoard() {
           const a = associates.find(x => x.id === o.associateId);
           return s + effectiveUPH(a, st.functionKey, st.setUPH);
         }, 0);
-        // Expected/goal UPH for this same headcount: the station's Target UPH per occupant,
-        // NOT scaled by anyone's own history or OJT ramp - this is "what we expect from this
-        // many people at this station" (the pill's "goal" side), vs packUphSum above which is
-        // "what they're actually averaging" (the pill's "actual" side).
-        packSetUphSum += occupants.length * st.setUPH;
+        // At Rate: what this same assigned roster (same hours each) would total if they packed
+        // at the station's Target UPH instead of their own actual/OJT-scaled average - the
+        // "what I should be hitting if everyone hit rate" figure, next to the real projection.
+        packAtRateUnits += atRateUnits;
       }
 
       // Labor Pivot: every function WITH a goal set today feeds the planner, not just Pack -
@@ -1523,7 +1536,7 @@ function renderBoard() {
 
   renderPivotHero({
     actual: packoutSoFar, totalGoal, totalProjected,
-    headcount: packHeadcount, uphSum: packUphSum, setUphSum: packSetUphSum,
+    headcount: packHeadcount, uphSum: packUphSum, atRateUnits: packAtRateUnits,
     elapsedMinNow
   });
   renderLaborPivot(elapsedMinNow, pivotByFn);
@@ -1556,7 +1569,7 @@ function currentShiftPeriodLabel(elapsedMinNow) {
    prototype's own (older, 4:30 PM-start) schedule, and "Actual" is read live from imported
    Pack-out data instead of a typed-in number.
    ====================================================================== */
-function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum, setUphSum, elapsedMinNow }) {
+function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum, atRateUnits, elapsedMinNow }) {
   const periodLabel = currentShiftPeriodLabel(elapsedMinNow);
   const periodEl = document.getElementById("shift-period-label");
   if (periodEl) periodEl.textContent = periodLabel === "Production" ? "" : `- ${periodLabel.toUpperCase()}`;
@@ -1621,14 +1634,20 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
     projAssignedEl.textContent = roundedAssigned ? roundedAssigned.toLocaleString() : "-";
     projAssignedEl.className = "pivot-card-value white";
   }
-  // Goal UPH (avg): the Target UPH we'd expect from this many assigned people, per the
-  // station(s) they're on - vs Actual UPH (avg): what they're really averaging (their own
-  // history, OJT-scaled where it applies). Same "expected vs actual" idea as the Current UPH
-  // card above, just for the assigned roster instead of today's whole-team observed pace.
-  const avgSetUph = headcount > 0 ? setUphSum / headcount : 0;
-  document.getElementById("pv-projected-assigned-sub").textContent = headcount > 0
-    ? `${headcount} assigned - Goal ${avgSetUph.toFixed(1)} UPH avg / Actual ${avgPersonUph.toFixed(1)} UPH avg`
-    : "No one assigned to Pack yet";
+  // At Rate: same assigned roster, same hours each, but at the station's Target UPH instead of
+  // their own actual/OJT-scaled average - "what I should be hitting if everyone hit rate,"
+  // shown right next to the real Projected (Assigned UPH) number for an at-a-glance comparison.
+  const roundedAtRate = Math.round(atRateUnits);
+  const atRateEl = document.getElementById("pv-at-rate");
+  if (totalGoal > 0) {
+    atRateEl.textContent = roundedAtRate.toLocaleString();
+    atRateEl.className = "pivot-card-value " + (roundedAtRate >= totalGoal ? "green" : roundedAtRate >= totalGoal * 0.95 ? "yellow" : "red");
+  } else {
+    atRateEl.textContent = roundedAtRate ? roundedAtRate.toLocaleString() : "-";
+    atRateEl.className = "pivot-card-value white";
+  }
+  document.getElementById("pv-projected-assigned-sub").textContent =
+    headcount > 0 ? `${headcount} assigned to Pack now` : "No one assigned to Pack yet";
 
   document.getElementById("pv-prodleft").textContent = Math.round(remainingProdMin);
   document.getElementById("pv-prodleft-sub").textContent = `of ${Math.round(nominalProdMin)} total`;
