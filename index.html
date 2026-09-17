@@ -112,8 +112,8 @@
   .sched-seg.brk{background:#78350f;color:#fde68a;}
   .sched-seg.extra{background:#1c1c2e;color:#4b5563;}
   .sched-now{position:absolute;top:-3px;bottom:-3px;width:4px;background:#f5a623;z-index:2;border-radius:2px;box-shadow:0 0 6px 1px rgba(245,166,35,.7);}
-  .sched-labels{display:flex;justify-content:space-between;margin-top:5px;}
-  .sched-lbl{font-size:.64rem;color:var(--hero-muted);}
+  .sched-labels{position:relative;height:14px;margin-top:5px;}
+  .sched-lbl{position:absolute;top:0;font-size:.64rem;color:var(--hero-muted);white-space:nowrap;}
 
   /* Labor Pivot planner - lives inside #shift-bar, replacing what used to be just a stat strip.
      Ranks every function with a goal set today by how short-handed it is and recommends a
@@ -1343,7 +1343,7 @@ function renderBoard() {
   // Combined-Pack accumulators for the hero card/analysis box below - every Pack (315) occupant,
   // whether or not their specific station has its own goal set (headcount/live-UPH should reflect
   // who's actually assigned to Pack right now, not just goal-bearing stations).
-  let packHeadcount = 0, packUphSum = 0;
+  let packHeadcount = 0, packUphSum = 0, packSetUphSum = 0;
 
   // Labor Pivot accumulator, keyed by functionKey - aggregates across every station that shares
   // a function (normally just one, since each bucket function is a single drop zone, but this
@@ -1468,6 +1468,11 @@ function renderBoard() {
           const a = associates.find(x => x.id === o.associateId);
           return s + effectiveUPH(a, st.functionKey, st.setUPH);
         }, 0);
+        // Expected/goal UPH for this same headcount: the station's Target UPH per occupant,
+        // NOT scaled by anyone's own history or OJT ramp - this is "what we expect from this
+        // many people at this station" (the pill's "goal" side), vs packUphSum above which is
+        // "what they're actually averaging" (the pill's "actual" side).
+        packSetUphSum += occupants.length * st.setUPH;
       }
 
       // Labor Pivot: every function WITH a goal set today feeds the planner, not just Pack -
@@ -1518,7 +1523,7 @@ function renderBoard() {
 
   renderPivotHero({
     actual: packoutSoFar, totalGoal, totalProjected,
-    headcount: packHeadcount, uphSum: packUphSum,
+    headcount: packHeadcount, uphSum: packUphSum, setUphSum: packSetUphSum,
     elapsedMinNow
   });
   renderLaborPivot(elapsedMinNow, pivotByFn);
@@ -1551,7 +1556,7 @@ function currentShiftPeriodLabel(elapsedMinNow) {
    prototype's own (older, 4:30 PM-start) schedule, and "Actual" is read live from imported
    Pack-out data instead of a typed-in number.
    ====================================================================== */
-function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum, elapsedMinNow }) {
+function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum, setUphSum, elapsedMinNow }) {
   const periodLabel = currentShiftPeriodLabel(elapsedMinNow);
   const periodEl = document.getElementById("shift-period-label");
   if (periodEl) periodEl.textContent = periodLabel === "Production" ? "" : `- ${periodLabel.toUpperCase()}`;
@@ -1616,8 +1621,14 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
     projAssignedEl.textContent = roundedAssigned ? roundedAssigned.toLocaleString() : "-";
     projAssignedEl.className = "pivot-card-value white";
   }
-  document.getElementById("pv-projected-assigned-sub").textContent =
-    headcount > 0 ? `${headcount} assigned to Pack now` : "No one assigned to Pack yet";
+  // Goal UPH (avg): the Target UPH we'd expect from this many assigned people, per the
+  // station(s) they're on - vs Actual UPH (avg): what they're really averaging (their own
+  // history, OJT-scaled where it applies). Same "expected vs actual" idea as the Current UPH
+  // card above, just for the assigned roster instead of today's whole-team observed pace.
+  const avgSetUph = headcount > 0 ? setUphSum / headcount : 0;
+  document.getElementById("pv-projected-assigned-sub").textContent = headcount > 0
+    ? `${headcount} assigned - Goal ${avgSetUph.toFixed(1)} UPH avg / Actual ${avgPersonUph.toFixed(1)} UPH avg`
+    : "No one assigned to Pack yet";
 
   document.getElementById("pv-prodleft").textContent = Math.round(remainingProdMin);
   document.getElementById("pv-prodleft-sub").textContent = `of ${Math.round(nominalProdMin)} total`;
@@ -1757,9 +1768,18 @@ function renderScheduleBar(elapsedMinNow) {
     d.setMinutes(d.getMinutes() + minFromStart);
     return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   }
+  // Position each label at its REAL elapsed-minute percentage of the bar, not evenly spaced -
+  // flex space-between used to spread these out regardless of actual time, which shoved the
+  // nominal-end label ("3:30 AM") all the way to the bar's right edge even though the Extra
+  // segment only starts at nominalMin/totalWindow (~91%), making Extra look like it started
+  // well before 3:30 AM instead of exactly at it.
   const nonStartupCleanup = breaks.slice(1, -1);
-  labelsEl.innerHTML = [clockAt(0), ...nonStartupCleanup.map(b => clockAt(b.startMin)), clockAt(nominalMin)]
-    .map(t => `<span class="sched-lbl">${t}</span>`).join("");
+  const labelMins = [0, ...nonStartupCleanup.map(b => b.startMin), nominalMin];
+  labelsEl.innerHTML = labelMins.map((min, i) => {
+    const pct = totalWindow > 0 ? (min / totalWindow * 100) : 0;
+    const align = i === 0 ? "translateX(0)" : i === labelMins.length - 1 ? "translateX(-100%)" : "translateX(-50%)";
+    return `<span class="sched-lbl" style="left:${pct.toFixed(3)}%;transform:${align}">${clockAt(min)}</span>`;
+  }).join("");
 
   if (titleEl) {
     titleEl.textContent = `Shift Schedule - ${clockAt(0)} to ${clockAt(totalWindow)} (${Math.round(totalWindow)} min total)`;
