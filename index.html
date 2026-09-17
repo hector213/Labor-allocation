@@ -49,16 +49,16 @@
   nav button.active{background:var(--orange);color:#fff;border-color:var(--orange);}
   #signout{font-size:12px;color:#bcd0ea;background:none;border:none;cursor:pointer;text-decoration:underline;}
 
-  main{padding:16px 20px;max-width:1500px;margin:0 auto;}
+  main{padding:16px 20px;width:100%;margin:0 auto;}
   .hidden{display:none !important;}
 
   /* ---------- Board view ---------- */
   #shift-bar{
-    display:flex;gap:24px;align-items:center;flex-wrap:wrap;
+    display:flex;gap:10px;align-items:center;flex-wrap:wrap;
     background:linear-gradient(135deg,var(--hero-bg),var(--hero-bg2));
-    color:var(--hero-text);border-radius:12px;padding:16px 20px;margin-bottom:14px;
+    color:var(--hero-text);border-radius:12px;padding:12px 16px;margin-bottom:10px;
   }
-  #shift-bar .title-row{width:100%;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:4px;}
+  #shift-bar .title-row{width:100%;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:2px;}
   #shift-bar h2.hero-title{margin:0;font-size:17px;font-weight:700;}
   #shift-bar .field label{color:var(--hero-muted);}
   #shift-bar input[type=date]{padding:5px;border:1px solid #33406a;border-radius:6px;background:#0e1730;color:var(--hero-text);}
@@ -74,8 +74,8 @@
      aggregate the old flat stat strip covered) since that's the one number small/large/WOS Pack
      already roll up into. Actual is LIVE from import data (Pack-out so far), not typed in. */
   #pivot-status-banner{
-    width:100%;padding:10px 18px;text-align:center;border-radius:8px;
-    font-size:1.05rem;font-weight:700;letter-spacing:.5px;margin-bottom:2px;
+    width:100%;padding:7px 16px;text-align:center;border-radius:8px;
+    font-size:1.05rem;font-weight:700;letter-spacing:.5px;margin-bottom:0;
   }
   #pivot-status-banner.on-pace{background:#166534;color:#86efac;}
   #pivot-status-banner.ahead{background:#14532d;color:#4ade80;}
@@ -84,33 +84,33 @@
   #pivot-status-banner.break-time{background:#1e3a5f;color:#93c5fd;}
   #pivot-status-banner.goal{background:#1e3a5f;color:#93c5fd;}
 
-  .pivot-section-title{width:100%;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin:4px 0 2px;}
-  #pivot-card-grid, #pivot-card-grid-pick, #pivot-projection-grid{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
+  .pivot-section-title{width:100%;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin:2px 0 1px;}
+  #pivot-card-grid, #pivot-card-grid-pick, #pivot-projection-grid{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;}
   .pivot-card-wide{grid-column:span 2;}
-  .pivot-card-split-row{display:flex;gap:24px;}
+  .pivot-card-split-row{display:flex;gap:16px;}
   .pivot-card-split-col{flex:1;min-width:0;}
-  .pivot-card{background:#173257;border:1px solid #2f5590;border-radius:10px;padding:12px 14px;}
-  .pivot-card-label{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:5px;}
+  .pivot-card{background:#173257;border:1px solid #2f5590;border-radius:10px;padding:8px 10px;}
+  .pivot-card-label{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:3px;}
   .pivot-card-value{font-size:1.7rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
-  .pivot-card-sub{font-size:.7rem;color:var(--hero-muted);margin-top:4px;}
+  .pivot-card-sub{font-size:.7rem;color:var(--hero-muted);margin-top:2px;}
   .pivot-card-value.green{color:#4ade80;} .pivot-card-value.red{color:#fca5a5;}
   .pivot-card-value.yellow{color:#facc15;} .pivot-card-value.white{color:#fff;} .pivot-card-value.accent{color:var(--orange);}
 
-  #pivot-analysis{width:100%;background:#122647;border:1px solid #2f5590;border-radius:10px;padding:14px 18px;}
-  .pivot-analysis-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:10px;}
-  .pivot-analysis-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+  #pivot-analysis{width:100%;background:#122647;border:1px solid #2f5590;border-radius:10px;padding:10px 14px;}
+  .pivot-analysis-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:6px;}
+  .pivot-analysis-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;}
   .pivot-item-label{font-size:.68rem;color:var(--hero-muted);text-transform:uppercase;letter-spacing:.05em;}
   .pivot-item-value{font-size:1.2rem;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px;}
   .pivot-item-value.green{color:#4ade80;} .pivot-item-value.red{color:#fca5a5;}
   .pivot-item-value.white{color:#fff;} .pivot-item-value.accent{color:var(--orange);}
   .pivot-item-value.yellow{color:#fde68a;}
-  .pivot-rec{margin-top:12px;padding:9px 14px;border-radius:8px;font-size:.85rem;font-weight:600;line-height:1.4;}
+  .pivot-rec{margin-top:8px;padding:7px 12px;border-radius:8px;font-size:.85rem;font-weight:600;line-height:1.4;}
   .pivot-rec.ok{background:#14532d;color:#86efac;}
   .pivot-rec.warn{background:#78350f;color:#fde68a;}
   .pivot-rec.behind{background:#7f1d1d;color:#fca5a5;}
   .pivot-rec.nodata{background:#1e293b;color:var(--hero-muted);}
 
-  #shift-schedule-bar-wrap{width:100%;margin-bottom:14px;}
+  #shift-schedule-bar-wrap{width:100%;margin-bottom:8px;}
   .sched-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:7px;}
   .sched-bar{display:flex;height:32px;border-radius:7px;overflow:hidden;border:1px solid #2f5590;position:relative;}
   .sched-seg{display:flex;align-items:center;justify-content:center;font-size:.64rem;font-weight:700;letter-spacing:.04em;overflow:hidden;white-space:nowrap;}
@@ -126,7 +126,7 @@
      Ranks every function with a goal set today by how short-handed it is and recommends a
      headcount move, using live actual units (actualUnitsToday) and remaining PRODUCTION minutes
      (shiftBreakOffsetsMinutes/productionMinutesElapsed, same break schedule as the trend chart). */
-  #labor-pivot-wrap{width:100%;margin-top:12px;border-top:1px solid #2a3760;padding-top:12px;overflow-x:auto;}
+  #labor-pivot-wrap{width:100%;margin-top:8px;border-top:1px solid #2a3760;padding-top:8px;overflow-x:auto;}
   #labor-pivot-wrap h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--hero-muted);}
   table#labor-pivot-table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px;}
   table#labor-pivot-table th{text-align:left;padding:6px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--hero-muted);border-bottom:1px solid #2a3760;white-space:nowrap;}
@@ -2065,6 +2065,12 @@ function renderLaborPivot(elapsedMinNow, pivotByFn) {
     return;
   }
 
+  // Same -150 tolerance the Combined Pack recommendation above uses: at/above ideal is green,
+  // behind but within 150 units is yellow (normal noise, no pivot yet), beyond 150 behind is red
+  // and calls for a pivot - headcount needed is driven by time left in the shift and the UPH
+  // still required to close the gap, same math as the Combined Pack box.
+  const ROW_PIVOT_VARIANCE_THRESHOLD = -150;
+
   rows.forEach(r => {
     const remainingUnits  = Math.max(0, r.targetUnits - r.actual);
     const avgUphPerPerson = r.headcount > 0 ? r.uphSum / r.headcount : r.fallbackUPH;
@@ -2079,12 +2085,15 @@ function renderLaborPivot(elapsedMinNow, pivotByFn) {
       rec = `Shift ending - short ${Math.round(remainingUnits)}`; cls = "bad";
     } else if (prodHoursElapsed <= 0 || avgUphPerPerson <= 0) {
       rec = "Not enough data yet"; cls = "warn";
+    } else if (variance >= 0) {
+      rec = "On pace"; cls = "ok";
+    } else if (variance > ROW_PIVOT_VARIANCE_THRESHOLD) {
+      rec = `Within tolerance (${Math.round(variance)})`; cls = "warn";
     } else {
       const rateNeeded = remainingUnits / prodHoursLeft;
-      const extra = Math.ceil((rateNeeded - liveUph) / avgUphPerPerson);
-      if (extra <= 0) { rec = "On pace"; cls = "ok"; }
-      else if (extra <= 3) { rec = `Consider +${extra}`; cls = "warn"; }
-      else { rec = `PIVOT - need +${extra}`; cls = "bad"; }
+      const extra = Math.max(1, Math.ceil((rateNeeded - liveUph) / avgUphPerPerson));
+      rec = `PIVOT - add ${extra} (${Math.round(rateNeeded)} UPH needed, ${Math.round(remainingProdMin)} min left)`;
+      cls = "bad";
     }
 
     const tr = document.createElement("tr");
