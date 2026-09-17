@@ -21,11 +21,15 @@
 
 <style>
   :root{
+    /* CarParts.com brand: navy is the primary/structural color, orange is reserved for goals,
+       targets, and the one thing on screen that needs your eye - not used for status semantics
+       (green/red/amber below stay as-is so "good/bad/warning" keeps meaning its own thing). */
     --bg:#f4f6f8; --panel:#ffffff; --border:#dfe3e8; --text:#1c2530; --muted:#6b7684;
-    --accent:#2f6fed; --accent-dark:#1f4fb8; --ok:#1f8a4c; --ok-bg:#e6f6ec;
+    --accent:#1c3f73; --accent-dark:#14315c; --accent-bg:#e4ebf5; --ok:#1f8a4c; --ok-bg:#e6f6ec;
     --warn:#b8860b; --warn-bg:#fdf3d8; --bad:#c62c2c; --bad-bg:#fce8e8;
+    --orange:#ff7a1c; --orange-dark:#c8590e;
     --slot-bg:#eef2ff; --bucket-bg:#f7f5ff;
-    --hero-bg:#111a2e; --hero-bg2:#1b2947; --hero-text:#eef2ff; --hero-muted:#93a1c4;
+    --hero-bg:#0f2547; --hero-bg2:#1c3f73; --hero-text:#eef2ff; --hero-muted:#9db3d6;
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
@@ -37,13 +41,13 @@
   #login-view button:hover{background:var(--accent-dark);}
   #login-error{color:var(--bad);font-size:13px;min-height:18px;}
 
-  header{display:flex;align-items:center;justify-content:space-between;background:var(--panel);border-bottom:1px solid var(--border);padding:10px 20px;}
-  header h1{font-size:16px;margin:0;}
-  header .who{font-size:12px;color:var(--muted);}
+  header{display:flex;align-items:center;justify-content:space-between;background:var(--accent);border-bottom:1px solid var(--accent-dark);padding:10px 20px;}
+  header h1{font-size:16px;margin:0;color:#fff;}
+  header .who{font-size:12px;color:#bcd0ea;}
   nav{display:flex;gap:8px;}
-  nav button{padding:6px 14px;border:1px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-size:13px;}
-  nav button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
-  #signout{font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;}
+  nav button{padding:6px 14px;border:1px solid #3a5c93;background:transparent;color:#cfe0ff;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;}
+  nav button.active{background:var(--orange);color:#fff;border-color:var(--orange);}
+  #signout{font-size:12px;color:#bcd0ea;background:none;border:none;cursor:pointer;text-decoration:underline;}
 
   main{padding:16px 20px;max-width:1500px;margin:0 auto;}
   .hidden{display:none !important;}
@@ -62,7 +66,7 @@
   .shift-stat b{display:block;font-size:18px;color:var(--hero-text);font-weight:700;margin-top:2px;}
   .shift-stat b.pos{color:#7be3a4;} .shift-stat b.neg{color:#ff9b9b;}
   .shift-progress-bar{width:100%;height:6px;background:#0e1730;border-radius:4px;overflow:hidden;margin-top:8px;}
-  .shift-progress-bar > div{height:100%;background:#4c8bff;}
+  .shift-progress-bar > div{height:100%;background:#2f5590;}
   #shift-bar .hero-sub{font-size:12px;font-weight:500;color:var(--hero-muted);margin-left:10px;}
 
   /* Labor Pivot hero - status banner + metric cards + analysis box, ported from the standalone
@@ -85,20 +89,20 @@
   .pivot-card-wide{grid-column:span 2;}
   .pivot-card-split-row{display:flex;gap:24px;}
   .pivot-card-split-col{flex:1;min-width:0;}
-  .pivot-card{background:#1a2f52;border:1px solid #2d4a7a;border-radius:10px;padding:12px 14px;}
+  .pivot-card{background:#173257;border:1px solid #2f5590;border-radius:10px;padding:12px 14px;}
   .pivot-card-label{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:5px;}
   .pivot-card-value{font-size:1.7rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
   .pivot-card-sub{font-size:.7rem;color:var(--hero-muted);margin-top:4px;}
   .pivot-card-value.green{color:#4ade80;} .pivot-card-value.red{color:#fca5a5;}
-  .pivot-card-value.yellow{color:#facc15;} .pivot-card-value.white{color:#fff;} .pivot-card-value.accent{color:var(--accent,#f5a623);}
+  .pivot-card-value.yellow{color:#facc15;} .pivot-card-value.white{color:#fff;} .pivot-card-value.accent{color:var(--orange);}
 
-  #pivot-analysis{width:100%;background:#16213f;border:1px solid #2d4a7a;border-radius:10px;padding:14px 18px;}
+  #pivot-analysis{width:100%;background:#122647;border:1px solid #2f5590;border-radius:10px;padding:14px 18px;}
   .pivot-analysis-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:10px;}
   .pivot-analysis-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
   .pivot-item-label{font-size:.68rem;color:var(--hero-muted);text-transform:uppercase;letter-spacing:.05em;}
   .pivot-item-value{font-size:1.2rem;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px;}
   .pivot-item-value.green{color:#4ade80;} .pivot-item-value.red{color:#fca5a5;}
-  .pivot-item-value.white{color:#fff;} .pivot-item-value.accent{color:var(--accent,#f5a623);}
+  .pivot-item-value.white{color:#fff;} .pivot-item-value.accent{color:var(--orange);}
   .pivot-item-value.yellow{color:#fde68a;}
   .pivot-rec{margin-top:12px;padding:9px 14px;border-radius:8px;font-size:.85rem;font-weight:600;line-height:1.4;}
   .pivot-rec.ok{background:#14532d;color:#86efac;}
@@ -108,13 +112,13 @@
 
   #shift-schedule-bar-wrap{width:100%;margin-bottom:14px;}
   .sched-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hero-muted);margin-bottom:7px;}
-  .sched-bar{display:flex;height:32px;border-radius:7px;overflow:hidden;border:1px solid #2d4a7a;position:relative;}
+  .sched-bar{display:flex;height:32px;border-radius:7px;overflow:hidden;border:1px solid #2f5590;position:relative;}
   .sched-seg{display:flex;align-items:center;justify-content:center;font-size:.64rem;font-weight:700;letter-spacing:.04em;overflow:hidden;white-space:nowrap;}
-  .sched-seg.prod{background:#1e4d8c;color:#93c5fd;}
+  .sched-seg.prod{background:#2f5590;color:#cfe0ff;}
   .sched-seg.startup, .sched-seg.cleanup{background:#374151;color:#d1d5db;}
-  .sched-seg.brk{background:#78350f;color:#fde68a;}
+  .sched-seg.brk{background:#7a3a10;color:#ffd8ad;}
   .sched-seg.extra{background:#1c1c2e;color:#4b5563;}
-  .sched-now{position:absolute;top:-3px;bottom:-3px;width:4px;background:#f5a623;z-index:2;border-radius:2px;box-shadow:0 0 6px 1px rgba(245,166,35,.7);}
+  .sched-now{position:absolute;top:-3px;bottom:-3px;width:4px;background:var(--orange);z-index:2;border-radius:2px;box-shadow:0 0 6px 1px rgba(255,122,28,.7);}
   .sched-labels{position:relative;height:14px;margin-top:5px;}
   .sched-lbl{position:absolute;top:0;font-size:.64rem;color:var(--hero-muted);white-space:nowrap;}
 
@@ -164,7 +168,7 @@
   .trend-title-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .pace-badge{display:inline-block;padding:3px 12px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;}
   .pace-badge.ahead{background:var(--ok-bg);color:var(--ok);}
-  .pace-badge.on{background:#e4ecfd;color:var(--accent-dark);}
+  .pace-badge.on{background:var(--accent-bg);color:var(--accent-dark);}
   .pace-badge.behind{background:var(--bad-bg);color:var(--bad);}
   .pace-badge.none{background:var(--bucket-bg);color:var(--muted);}
   .trend-toggle{display:flex;gap:6px;}
@@ -241,7 +245,7 @@
   .flag.ok{background:var(--ok-bg);color:var(--ok);}
   .flag.warn{background:var(--warn-bg);color:var(--warn);}
   .flag.bad{background:var(--bad-bg);color:var(--bad);}
-  .flag.goal{background:#e4ecfd;color:var(--accent-dark);}
+  .flag.goal{background:var(--accent-bg);color:var(--accent-dark);}
   .proj-line{font-size:12px;color:var(--muted);margin-top:4px;}
 
   #ai-fab{position:fixed;right:22px;bottom:22px;width:54px;height:54px;border-radius:50%;background:var(--hero-bg2);color:#fff;border:none;box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:20px;cursor:pointer;}
@@ -306,6 +310,7 @@
       <button id="nav-inbound">Inbound</button>
       <button id="nav-assoc-trend">Associate UPH</button>
       <button id="nav-assoc-numbers">Associate Numbers</button>
+      <button id="nav-import">Import Data</button>
       <button id="nav-admin">Admin</button>
     </nav>
     <div>
@@ -373,7 +378,7 @@
           </div>
           <div class="pivot-card">
             <div class="pivot-card-label">Goal</div>
-            <div class="pivot-card-value white" id="pv-goal">&mdash;</div>
+            <div class="pivot-card-value accent" id="pv-goal">&mdash;</div>
             <div class="pivot-card-sub">Combined Pack target</div>
           </div>
           <div class="pivot-card pivot-card-wide">
@@ -620,13 +625,46 @@
       </div>
     </section>
 
+    <!-- ---------- IMPORT DATA VIEW ---------- -->
+    <!-- Moved out of Admin's sub-tabs to its own top-level tab, right before Admin, since it's
+         used every shift (not a one-time setup task like the rest of Admin). -->
+    <section id="import-view" class="hidden">
+      <div class="panel">
+        <h2>Import Transaction Data</h2>
+        <div class="note">
+          Replicates the Shift_Cost_Sheet Power Query cleaning: skips the junk header row, promotes real headers,
+          derives ShiftDate (rolls to the prior day for scans before 4:30 AM), keeps only overnight scans
+          (5:00 PM&ndash;4:30 AM), dedupes, then averages UPH per associate per Tran Type per day.
+          <br><br>
+          <b>Note on Pick codes:</b> Tran Type 301 covers MOD/OP/Walkie Pick alike &mdash; the raw scan data can't
+          tell those apart on its own (same as in the Excel sheet, where you pick the Role manually). Historical
+          UPH for any Pick bucket sharing a Tran Type will use the same underlying data until that's refined.
+        </div>
+        <input type="file" id="import-file" accept=".xlsx,.xls,.csv">
+        <button class="btn" id="import-btn">Parse &amp; Preview</button>
+        <button class="btn secondary hidden" id="commit-btn">Write to History</button>
+        <div id="import-log"></div>
+
+        <h2 style="margin-top:24px">Clear records for a shift date</h2>
+        <div class="note">
+          One-time cleanup tool. Deletes every uphHistory record for the date you pick &mdash; use this to
+          wipe out bad data from a test/broken import before re-importing the corrected file, so old and
+          new records for that night don't both sit there and look like a "split."
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Shift date to clear</label><input type="date" id="clear-shiftdate"></div>
+        </div>
+        <button class="btn secondary" id="clear-shiftdate-btn">Delete all records for this date</button>
+        <div id="clear-shiftdate-log"></div>
+      </div>
+    </section>
+
     <!-- ---------- ADMIN VIEW ---------- -->
     <section id="admin-view" class="hidden">
       <div id="admin-tabs">
         <button class="admin-tab-btn active" data-tab="stations">Stations</button>
         <button class="admin-tab-btn" data-tab="associates">Associates</button>
         <button class="admin-tab-btn" data-tab="goals">Shift Goals</button>
-        <button class="admin-tab-btn" data-tab="import">Import Data</button>
         <button class="admin-tab-btn" data-tab="settings">Settings</button>
       </div>
 
@@ -705,36 +743,6 @@
           <thead><tr><th>Function</th><th>Target Units</th><th>Planned Hours</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
-      </div>
-
-      <!-- Import tab -->
-      <div class="admin-pane admin-tab hidden" data-tab="import">
-        <h2>Import Transaction Data</h2>
-        <div class="note">
-          Replicates the Shift_Cost_Sheet Power Query cleaning: skips the junk header row, promotes real headers,
-          derives ShiftDate (rolls to the prior day for scans before 4:30 AM), keeps only overnight scans
-          (5:00 PM&ndash;4:30 AM), dedupes, then averages UPH per associate per Tran Type per day.
-          <br><br>
-          <b>Note on Pick codes:</b> Tran Type 301 covers MOD/OP/Walkie Pick alike &mdash; the raw scan data can't
-          tell those apart on its own (same as in the Excel sheet, where you pick the Role manually). Historical
-          UPH for any Pick bucket sharing a Tran Type will use the same underlying data until that's refined.
-        </div>
-        <input type="file" id="import-file" accept=".xlsx,.xls,.csv">
-        <button class="btn" id="import-btn">Parse &amp; Preview</button>
-        <button class="btn secondary hidden" id="commit-btn">Write to History</button>
-        <div id="import-log"></div>
-
-        <h2 style="margin-top:24px">Clear records for a shift date</h2>
-        <div class="note">
-          One-time cleanup tool. Deletes every uphHistory record for the date you pick &mdash; use this to
-          wipe out bad data from a test/broken import before re-importing the corrected file, so old and
-          new records for that night don't both sit there and look like a "split."
-        </div>
-        <div class="field-row">
-          <div class="field"><label>Shift date to clear</label><input type="date" id="clear-shiftdate"></div>
-        </div>
-        <button class="btn secondary" id="clear-shiftdate-btn">Delete all records for this date</button>
-        <div id="clear-shiftdate-log"></div>
       </div>
 
       <!-- Settings tab -->
@@ -1032,6 +1040,7 @@ document.getElementById("nav-trend").addEventListener("click", () => showView("t
 document.getElementById("nav-inbound").addEventListener("click", () => showView("inbound"));
 document.getElementById("nav-assoc-trend").addEventListener("click", () => showView("assoc-trend"));
 document.getElementById("nav-assoc-numbers").addEventListener("click", () => showView("assoc-numbers"));
+document.getElementById("nav-import").addEventListener("click", () => showView("import"));
 document.getElementById("nav-admin").addEventListener("click", () => showView("admin"));
 function showView(v) {
   document.getElementById("board-view").classList.toggle("hidden", v !== "board");
@@ -1039,12 +1048,14 @@ function showView(v) {
   document.getElementById("inbound-view").classList.toggle("hidden", v !== "inbound");
   document.getElementById("assoc-trend-view").classList.toggle("hidden", v !== "assoc-trend");
   document.getElementById("assoc-numbers-view").classList.toggle("hidden", v !== "assoc-numbers");
+  document.getElementById("import-view").classList.toggle("hidden", v !== "import");
   document.getElementById("admin-view").classList.toggle("hidden", v !== "admin");
   document.getElementById("nav-board").classList.toggle("active", v === "board");
   document.getElementById("nav-trend").classList.toggle("active", v === "trend");
   document.getElementById("nav-inbound").classList.toggle("active", v === "inbound");
   document.getElementById("nav-assoc-trend").classList.toggle("active", v === "assoc-trend");
   document.getElementById("nav-assoc-numbers").classList.toggle("active", v === "assoc-numbers");
+  document.getElementById("nav-import").classList.toggle("active", v === "import");
   document.getElementById("nav-admin").classList.toggle("active", v === "admin");
   if (v === "trend") {
     // The chart canvas was inside a display:none section until now, so Chart.js may have
@@ -2129,7 +2140,7 @@ function renderTrendChart() {
   document.getElementById("trend-avg-uph").textContent = avgUphLive.toFixed(1);
 
   const datasets = [
-    { label: "Actual Cumulative", data: actualCum, borderColor: "#2f6fed", backgroundColor: "transparent", tension: 0.15, pointRadius: 2 },
+    { label: "Actual Cumulative", data: actualCum, borderColor: "#ff7a1c", backgroundColor: "transparent", tension: 0.15, pointRadius: 2 },
     { label: "Ideal Target Cumulative", data: idealCum, borderColor: "#9aa4b2", borderDash: [6, 4], backgroundColor: "transparent", tension: 0, pointRadius: 0 }
   ];
   if (trendChartInstance) {
@@ -2158,8 +2169,8 @@ function renderTrendChart() {
    charts/stat blocks. Goals come from Admin > Shift Goals (Inbound Receiver / Inbound Putaway).
    ====================================================================== */
 const INBOUND_CHARTS = [
-  { tranType: "151", prefix: "inbound-receiving", color: "#2f6fed" },
-  { tranType: "212", prefix: "inbound-putaway", color: "#f5a623" }
+  { tranType: "151", prefix: "inbound-receiving", color: "#ff7a1c" },
+  { tranType: "212", prefix: "inbound-putaway", color: "#ff7a1c" }
 ];
 let inboundChartInstances = {};
 
@@ -2207,7 +2218,7 @@ function renderInboundCharts() {
     const datasets = [
       { label: "Actual Cumulative", data: actualCum, borderColor: cfg.color, backgroundColor: "transparent", tension: 0.15, pointRadius: 2 },
       { label: "Ideal Target Cumulative", data: idealCum, borderColor: "#9aa4b2", borderDash: [6, 4], backgroundColor: "transparent", tension: 0, pointRadius: 0 },
-      { label: "Shift Goal", data: goalLine, borderColor: "#7be3a4", borderDash: [2, 3], backgroundColor: "transparent", tension: 0, pointRadius: 0, borderWidth: 1.5 }
+      { label: "Shift Goal", data: goalLine, borderColor: "#1c3f73", borderDash: [2, 3], backgroundColor: "transparent", tension: 0, pointRadius: 0, borderWidth: 2 }
     ];
     const existing = inboundChartInstances[cfg.tranType];
     if (existing) {
@@ -2384,7 +2395,7 @@ function renderAssocTrendChart() {
 
   const labels = buckets.map(b => b.label);
   const datasets = [
-    { label: `${associate ? associate.name : "Associate"} Actual Cumulative`, data: actualCum, borderColor: "#2f6fed", backgroundColor: "transparent", tension: 0.15, pointRadius: 2 },
+    { label: `${associate ? associate.name : "Associate"} Actual Cumulative`, data: actualCum, borderColor: "#ff7a1c", backgroundColor: "transparent", tension: 0.15, pointRadius: 2 },
     { label: "Ideal Target Cumulative", data: idealCum, borderColor: "#9aa4b2", borderDash: [6, 4], backgroundColor: "transparent", tension: 0, pointRadius: 0 }
   ];
   if (assocTrendChartInstance) {
