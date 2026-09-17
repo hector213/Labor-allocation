@@ -492,6 +492,7 @@
             </div>
           </div>
           <div class="trend-stats">
+            <div class="shift-stat">Shift goal <b id="inbound-receiving-goal">0</b></div>
             <div class="shift-stat">Actual so far <b id="inbound-receiving-actual">0</b></div>
             <div class="shift-stat">Ideal target so far <b id="inbound-receiving-ideal">0</b></div>
             <div class="shift-stat">Variance <b id="inbound-receiving-variance">0</b></div>
@@ -511,6 +512,7 @@
             </div>
           </div>
           <div class="trend-stats">
+            <div class="shift-stat">Shift goal <b id="inbound-putaway-goal">0</b></div>
             <div class="shift-stat">Actual so far <b id="inbound-putaway-actual">0</b></div>
             <div class="shift-stat">Ideal target so far <b id="inbound-putaway-ideal">0</b></div>
             <div class="shift-stat">Variance <b id="inbound-putaway-variance">0</b></div>
@@ -2173,6 +2175,7 @@ function renderInboundCharts() {
 
     const { labels, actualCum, idealCum, actualSoFar, idealSoFar, dailyTarget, avgUphLive } = computeTrendSeries(cfg.tranType);
 
+    document.getElementById(`${cfg.prefix}-goal`).textContent = dailyTarget > 0 ? Math.round(dailyTarget) : "- (no goal set)";
     document.getElementById(`${cfg.prefix}-actual`).textContent = Math.round(actualSoFar);
     document.getElementById(`${cfg.prefix}-ideal`).textContent = dailyTarget > 0 ? Math.round(idealSoFar) : "- (no goal set)";
     const varEl = document.getElementById(`${cfg.prefix}-variance`);
@@ -2198,15 +2201,20 @@ function renderInboundCharts() {
     }
     document.getElementById(`${cfg.prefix}-avg-uph`).textContent = avgUphLive.toFixed(1);
 
+    // Flat "Shift Goal" reference line at the full daily target, so the goal for this function
+    // is visible on the chart itself, not just implied by where the Ideal Target line tops out.
+    const goalLine = dailyTarget > 0 ? labels.map(() => dailyTarget) : [];
     const datasets = [
       { label: "Actual Cumulative", data: actualCum, borderColor: cfg.color, backgroundColor: "transparent", tension: 0.15, pointRadius: 2 },
-      { label: "Ideal Target Cumulative", data: idealCum, borderColor: "#9aa4b2", borderDash: [6, 4], backgroundColor: "transparent", tension: 0, pointRadius: 0 }
+      { label: "Ideal Target Cumulative", data: idealCum, borderColor: "#9aa4b2", borderDash: [6, 4], backgroundColor: "transparent", tension: 0, pointRadius: 0 },
+      { label: "Shift Goal", data: goalLine, borderColor: "#7be3a4", borderDash: [2, 3], backgroundColor: "transparent", tension: 0, pointRadius: 0, borderWidth: 1.5 }
     ];
     const existing = inboundChartInstances[cfg.tranType];
     if (existing) {
       existing.data.labels = labels;
       existing.data.datasets[0].data = actualCum;
       existing.data.datasets[1].data = idealCum;
+      existing.data.datasets[2].data = goalLine;
       existing.update();
     } else {
       inboundChartInstances[cfg.tranType] = new Chart(canvas, {
