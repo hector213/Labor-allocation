@@ -79,6 +79,7 @@
   }
   #pivot-status-banner.on-pace{background:#166534;color:#86efac;}
   #pivot-status-banner.ahead{background:#14532d;color:#4ade80;}
+  #pivot-status-banner.caution{background:#78350f;color:#fde68a;}
   #pivot-status-banner.behind{background:#7f1d1d;color:#fca5a5;}
   #pivot-status-banner.no-shift{background:#1e293b;color:var(--hero-muted);}
   #pivot-status-banner.break-time{background:#1e3a5f;color:#93c5fd;}
@@ -1708,6 +1709,17 @@ function currentShiftPeriodLabel(elapsedMinNow) {
    prototype's own (older, 4:30 PM-start) schedule, and "Actual" is read live from imported
    Pack-out data instead of a typed-in number.
    ====================================================================== */
+// Status banner color, driven purely by variance vs ideal - independent of the pivot
+// recommendation text below it, so the banner always reflects the same 3-tier read: at/above
+// ideal is green, behind by up to 150 units is yellow (normal noise), behind by more than 150
+// is red. Matches the Labor Pivot Analysis table's own thresholds (renderLaborPivot()).
+function bannerStateForVariance(v) {
+  if (v >= 10) return { cls: "ahead", label: `ON PACE | AHEAD BY ${Math.round(v).toLocaleString()} UNITS` };
+  if (v >= 0) return { cls: "on-pace", label: `ON PACE | VARIANCE: +${Math.round(v).toLocaleString()}` };
+  if (v > -151) return { cls: "caution", label: `ON PACE | VARIANCE: ${Math.round(v).toLocaleString()}` };
+  return { cls: "behind", label: `BEHIND BY ${Math.abs(Math.round(v)).toLocaleString()} UNITS - PIVOT NEEDED` };
+}
+
 function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum, atRateUnits, elapsedMinNow }) {
   const periodLabel = currentShiftPeriodLabel(elapsedMinNow);
   const periodEl = document.getElementById("shift-period-label");
@@ -1865,20 +1877,25 @@ function renderPivotHero({ actual, totalGoal, totalProjected, headcount, uphSum,
       recEl.textContent = `Current Pack headcount (${headcount}) is sufficient. Needed rate: ${Math.round(rateNeeded)} UPH - current: ${liveUph.toFixed(1)} UPH.`;
     }
     if (periodLabel === "Production" || periodLabel === "Extra") {
-      const v = variance;
-      if (v >= 10) { banner.className = "ahead"; banner.textContent = `ON PACE | AHEAD BY ${Math.round(v).toLocaleString()} UNITS`; }
-      else { banner.className = "on-pace"; banner.textContent = `ON PACE | VARIANCE: ${v >= 0 ? "+" : ""}${Math.round(v).toLocaleString()}`; }
+      const state = bannerStateForVariance(variance);
+      banner.className = state.cls; banner.textContent = state.label;
     }
   } else if (extraPeople <= 3) {
     peopleEl.textContent = "+" + extraPeople + " people"; peopleEl.className = "pivot-item-value accent";
     recEl.className = "pivot-rec warn";
     recEl.textContent = `Consider adding ${extraPeople} associate${extraPeople > 1 ? "s" : ""} to Pack to recover pace. Need ${Math.round(rateNeeded)} UPH; currently tracking ${liveUph.toFixed(1)} UPH with ${headcount} on the floor.`;
-    if (periodLabel === "Production" || periodLabel === "Extra") { banner.className = "behind"; banner.textContent = `BEHIND BY ${Math.abs(Math.round(variance)).toLocaleString()} UNITS - PIVOT NEEDED`; }
+    if (periodLabel === "Production" || periodLabel === "Extra") {
+      const state = bannerStateForVariance(variance);
+      banner.className = state.cls; banner.textContent = state.label;
+    }
   } else {
     peopleEl.textContent = "+" + extraPeople + " people"; peopleEl.className = "pivot-item-value red";
     recEl.className = "pivot-rec behind";
     recEl.textContent = `PIVOT NEEDED - add ${extraPeople} associates to hit ${Math.round(totalGoal).toLocaleString()} units. Required rate: ${Math.round(rateNeeded)} UPH vs current ${liveUph.toFixed(1)} UPH. Act now - ${Math.round(remainingProdMin)} prod min remaining.`;
-    if (periodLabel === "Production" || periodLabel === "Extra") { banner.className = "behind"; banner.textContent = `BEHIND BY ${Math.abs(Math.round(variance)).toLocaleString()} UNITS - PIVOT NEEDED`; }
+    if (periodLabel === "Production" || periodLabel === "Extra") {
+      const state = bannerStateForVariance(variance);
+      banner.className = state.cls; banner.textContent = state.label;
+    }
   }
 }
 
