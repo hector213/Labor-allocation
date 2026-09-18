@@ -12153,11 +12153,11 @@ body { background:#f4f6fb; font-family:'Segoe UI',sans-serif; margin:0; }
         <div class="title-row">
           <h2 class="hero-title">Labor Pivot Planner <span class="hero-sub" id="shift-period-label"></span></h2>
           <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-            <div class="field" style="align-items:center;">
+            <div class="field" style="display:flex;flex-direction:column;align-items:center;">
               <label for="shift-date" style="text-align:center;">Shift date</label>
-              <input type="date" id="shift-date">
+              <input type="date" id="shift-date" style="text-align:center;">
             </div>
-            <span id="lb-last-updated" style="font-size:13px;color:var(--hero-muted);white-space:nowrap;text-align:center;"></span>
+            <span id="lb-last-updated" style="font-size:17px;color:var(--hero-muted);white-space:nowrap;text-align:center;"></span>
           </div>
           <button class="btn secondary" id="clear-assignments-btn" title="Fixes anyone stuck 'assigned' from the duplicate-segment bug">Reset today's assignments</button>
         </div>
