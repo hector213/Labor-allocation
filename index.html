@@ -10629,6 +10629,9 @@ body { background:#f4f6fb; font-family:'Segoe UI',sans-serif; margin:0; }
       <a class="nav-link active" data-view="dashboard" onclick="loadDashboard()">
         <i class="fas fa-th-large"></i><span>Dashboard</span>
       </a>
+      <a class="nav-link" data-view="production" onclick="event.preventDefault(); showView('production')">
+        <i class="fas fa-industry"></i><span>Production</span>
+      </a>
       <a class="nav-link" data-view="matrix" onclick="loadMatrix()">
         <i class="fas fa-table"></i><span>Training Matrix</span>
       </a>
@@ -10655,9 +10658,6 @@ body { background:#f4f6fb; font-family:'Segoe UI',sans-serif; margin:0; }
       </a>
       <a class="nav-link d-none" id="navAdmin" data-view="admin" onclick="loadAdminPanel()">
         <i class="fas fa-shield-alt"></i><span>Admin</span>
-      </a>
-      <a class="nav-link" data-view="production" onclick="event.preventDefault(); showView('production')">
-        <i class="fas fa-industry"></i><span>Production</span>
       </a>
       <a class="nav-link" data-view="help" onclick="showView('help')">
         <i class="fas fa-question-circle"></i><span>Help</span>
